@@ -8,6 +8,7 @@
 package AC::MrQuincy::Runtime;
 use AC::MrQuincy::Iter::File;
 use AC::Import;
+use JSON;
 use strict;
 
 sub new {
@@ -17,7 +18,8 @@ sub new {
 
     # mrquincy expects m/r data on fd#3
     open STDDAT, '>&=', 3;
-    select STDDAT; $| = 1; select STDOUT;
+    select STDDAT; $| = 1;
+    select STDOUT; $| = 1;
 
     return bless {
         conf	=> $conf,

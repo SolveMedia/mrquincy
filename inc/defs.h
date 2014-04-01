@@ -8,6 +8,8 @@
 #ifndef __mrquincy_defs_h_
 #define __mrquincy_defs_h_
 
+
+#define MYNAME		"mrquincy"
 #define DEBUGING	1
 
 #define DISALLOW_COPY(T) \

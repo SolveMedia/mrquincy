@@ -1,0 +1,13 @@
+
+compatibility changes from Mr.Gamoo
+
+- new support for writing jobs in other languages
+
+- perl:
+        - you can no longer disable 'use strict'
+        - you cannot specify an 'in_package'
+
+
+- tasktimeout is measured differently, you may need to increase
+
+

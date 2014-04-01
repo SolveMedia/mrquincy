@@ -193,6 +193,8 @@ _hashval(const char *buf, int len){
 void
 MapOutSet::output(const char *buf, int len){
 
+    if( _nfile == 0 ) return;
+
     // only one output? short inpu? short circuit
     if( _nfile == 1 || len < 4 ){
         _file[0]->output(buf, len);

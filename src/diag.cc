@@ -60,7 +60,7 @@ diag_init(void){
     gethostname(hostname, sizeof(hostname));
 
     // RSN - make configurable
-    openlog( "mrquincy", LOG_NDELAY|LOG_PID, LOG_LOCAL4);
+    openlog( MYNAME, LOG_NDELAY|LOG_PID, LOG_LOCAL4);
 }
 
 
@@ -154,9 +154,9 @@ send_error_email( const char *msg, int len, int with_trace ){
     f = popen(cmd, "w");
     if(!f) return;
 
-    fprintf(f, "To: %s\nFrom: %s\nSubject: mrquincy daemon error\n\n",
+    fprintf(f, "To: %s\nFrom: %s\nSubject: " MYNAME " daemon error\n\n",
 	    config->error_mailto.c_str(), config->error_mailfrom.c_str());
-    fprintf(f, "an error was detected in bouncrd\n\n");
+    fprintf(f, "an error was detected in " MYNAME "d\n\n");
 
     fprintf(f, "host: %s\npid:  %d\n\nerror:\n%s\n", hostname, getpid(), msg);
 

@@ -51,6 +51,12 @@ unique(string *dst){
     lock.unlock();
 
     base64_encode((char*)&g, sizeof(g), buf, sizeof(buf));
+
+    // safe encode: / => _
+    for(int i=0; i<sizeof(buf); i++){
+        if( buf[i] == '/' ) buf[i] = '_';
+    }
+
     dst->append(buf);
 
 }

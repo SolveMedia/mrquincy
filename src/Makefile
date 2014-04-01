@@ -39,4 +39,3 @@ clean:
 	$(CCC) $(CFLAGS) -c -o $*.o $*.pb.cc
 	$(CVT) $< ../lib/AC/MrQuincy/proto/$*.pl
 
-

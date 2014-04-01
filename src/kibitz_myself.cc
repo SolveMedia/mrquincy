@@ -67,6 +67,7 @@ about_myself(ACPMRMStatus *g){
     hrtime_t now = lr_now();
     ACPIPPort *ip;
     double load[3];
+    struct statvfs vfs;
 
     getloadavg( load, 3 );
 
@@ -74,7 +75,7 @@ about_myself(ACPMRMStatus *g){
     g->set_server_id( myserver_id );
     g->set_datacenter( mydatacenter );
     g->set_environment( config->environment );
-    g->set_subsystem( "mrquincy" );
+    g->set_subsystem( MYNAME );
     g->set_via( myserver_id );
     g->set_path( "." );
     g->set_status( (now > starttime + BOOTTIME) ? 200 : 102 );
@@ -83,6 +84,11 @@ about_myself(ACPMRMStatus *g){
 
     // RSN - load ave + jobs
     g->set_sort_metric( (int)(load[1] * 1000) );
+
+    // determine disk space
+    if( ! statvfs( config->basedir.c_str(), &vfs ) ){
+        g->set_capacity_metric( vfs.f_bavail / 2048 );	// MB avail
+    }
 
     // ip info
     ip = g->add_ip();

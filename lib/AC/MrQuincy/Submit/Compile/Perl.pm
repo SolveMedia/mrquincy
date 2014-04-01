@@ -159,7 +159,7 @@ while(<>){
     next unless $R->filter(  $d );
 
     my($key, $data) = program( $d );
-    $R->output( $key, $data ) if define $key;
+    $R->output( $key, $data ) if defined $key;
 }
 
 EOW
@@ -181,7 +181,7 @@ do {
   while( defined(my $k = $iter->key()) ){
 
       my($key, $data) = program( $k, $iter );
-      $R->output( $key, $data ) if define $key;
+      $R->output( $key, $data ) if defined $key;
   }
 };
 
@@ -201,9 +201,9 @@ sub compile_final {
 
 while(<>){
     my $d = decode_json( $_ );
-    program( @$d );
+    my @o = program( @$d );
 
-    $R->output("\n", "\n" );	# keepalive
+    $R->output(@o) if @o;
 }
 
 EOW

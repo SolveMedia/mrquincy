@@ -469,6 +469,7 @@ read_proto(NTD *ntd, int reqp, int to){
 
     if( ph->data_length > ntd->in_size - sizeof(protocol_header) ){
         ntd->in_resize( ph->data_length + sizeof(protocol_header) );
+        ph = (protocol_header*) ntd->gpbuf_in;
     }
 
     // read gpb
@@ -842,7 +843,7 @@ handle_hbreq(NTD* ntd){
 	g.set_sort_metric( (int)(load[1] * 1000) );
     }
 
-    g.set_subsystem( "mrmagoo" );
+    g.set_subsystem( MYNAME );
     g.set_hostname( myhostname );
     g.set_environment( config->environment.c_str() );
     g.set_timestamp( lr_now() );

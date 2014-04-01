@@ -426,7 +426,7 @@ Job::plan_files(void){
 
         if( !step->_phase.compare("final") ){
             infile  = width;
-            outfile = 0;
+            outfile = 1;
         }else{
             infile  = width;
             outfile = prevnt;

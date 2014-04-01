@@ -514,11 +514,12 @@ run_task_prog(int parent_fd, Task *g){
 
     eu_out.done();
     eu_err.done();
+    pl.done();
 
     hrtime_t t1 = lr_now();
     DEBUG("run time: %d", t1 - t0);
 
-    _exit( exitval );
+    _exit( exitval ? -1 : 0 );
 }
 
 /*

@@ -11,6 +11,7 @@ package AC::MrQuincy::Client::Console::UDP;
 use AC::Protocol;
 use AC::DC::Debug;
 use AC::Dumper;
+use AC::Misc;
 use strict;
 
 our @ISA = ('AC::DC::IO::UDP', 'AC::MrQuincy::Client::Console');
@@ -27,11 +28,18 @@ sub new {
     my $fd = $udp->{fd};
     my $peer = recv($fd, $buf, $BUFSIZ, 0);
 
-    my $proto = AC::Protocol->decode_header($buf);
-    my $data  = substr($buf, AC::Protocol->header_size());
-    my $req   = AC::Protocol->decode_request($proto, $data);
+    eval {
+        my $proto = AC::Protocol->decode_header($buf);
+        # print STDERR dumper($proto), "\n";
+        my $data  = substr($buf, AC::Protocol->header_size());
+        my $req   = AC::Protocol->decode_request($proto, $data);
 
-    $udp->AC::MrQuincy::Client::Console::output( $req, $mrm );
+        $udp->AC::MrQuincy::Client::Console::output( $req, $mrm );
+    };
+    if( $@ ){
+        print STDERR "$@" if $@;
+        print STDERR hex_dump($buf), "\n";
+    }
 }
 
 

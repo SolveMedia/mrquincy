@@ -53,7 +53,7 @@ ToDo::retry_or_abort(void){
 void
 TaskToDo::failed(void){
 
-    _job->inform("task %s failed", _xid.c_str());
+    _job->kvetch("task %s failed", _xid.c_str());
     _job->derunning_x(this);
     _job->_servers[ _serveridx ]->_n_task_running --;
     _job->_n_task_running --;
@@ -63,7 +63,7 @@ TaskToDo::failed(void){
 void
 XferToDo::failed(void){
 
-    _job->inform("xfer %s failed", _xid.c_str());
+    _job->kvetch("xfer %s failed", _xid.c_str());
     _job->derunning_x(this);
     _job->_servers[ _serveridx ]->_n_xfer_running --;
     _job->_n_xfer_running --;
@@ -73,7 +73,8 @@ XferToDo::failed(void){
 
 void
 ToDo::timedout(void){
-    DEBUG("time out");
+
+    _job->kvetch("task %s timed out", _xid.c_str());
     abort();
     failed();
 }

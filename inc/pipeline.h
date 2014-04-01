@@ -21,6 +21,7 @@ public:
     ~Pipeline();
     int waitpid(void);
     void abort(void);
+    void done(void){ _cleanup(); }
 };
 
 

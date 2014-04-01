@@ -19,6 +19,7 @@ message ACPMRMStatus {
 	optional int32		sort_metric	= 12;
         required string         server_id       = 13;
         optional string         path            = 15;   // for debugging
+        optional int32          capacity_metric = 16;
 };
 
 message ACPMRMStatusRequest {
