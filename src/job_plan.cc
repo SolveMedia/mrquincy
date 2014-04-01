@@ -77,7 +77,7 @@ Job::plan(void){
     int maps = _plan[0]->_tasks.size();
 
     ostringstream b;
-    b << "job " << jobid()
+    b << "job: " << jobid()
       << " plan: bytes: " << (_totalmapsize / 1000000)
       << " MB, maps: " << maps
       << ", reduces: " << (_plan.size() - 1) << "x" << reduce_width();

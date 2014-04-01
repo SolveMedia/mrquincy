@@ -169,7 +169,7 @@ Job::start_step_x(void){
         step->_tasks[i]->pending();
     }
 
-    report("starting phase %s", _plan[_stepno]->_phase.c_str());
+    inform("starting phase %s", _plan[_stepno]->_phase.c_str());
 
     return 1;
 }

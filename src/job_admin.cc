@@ -143,7 +143,7 @@ handle_jobstatus(NTD *ntd){
         return 0;
     }
 
-    VERBOSE("recvd job status %s", req.jobid().c_str());
+    DEBUG("recvd job status %s", req.jobid().c_str());
 
     int f = jobq.update(&req);
 
