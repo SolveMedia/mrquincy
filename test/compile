@@ -1,0 +1,44 @@
+#!/usr/local/bin/perl
+# -*- perl -*-
+
+# Copyright (c) 2014
+# Author: Jeff Weisberg <jaw @ solvemedia.com>
+# Created: 2014-Mar-31 16:59 (EDT)
+# Function: 
+
+
+use lib '/home/adcopy/lib';
+use lib '/home/bagel/u/jaw/dev/adcopy/src/mrquincy/lib';
+
+use AC::MrQuincy::Submit::Parse;
+use AC::MrQuincy::Submit::Compile;
+
+use AC::Protocol;
+use AC::Dumper;
+use AC::Misc;
+use JSON;
+use Socket;
+
+require 'proto/std_reply.pl';
+require 'proto/mrmagoo.pl';
+
+use strict;
+
+my $mp = AC::MrQuincy::Submit::Parse->new( file => '../../mrjob/test1' );
+
+my $mr = AC::MrQuincy::Submit::Compile->new(
+    lang	=> 'perl',
+    perlbin	=> '/usr/local/bin/perl',
+    libdir	=> '/home/adcopy/lib',
+
+    config	=> { foo => 123, bar => 456 },
+    runinit	=> 0,
+    dumpsrc	=> 0,
+   );
+
+my $j = $mr->compile( $mp );
+
+print STDERR dumper($j);
+
+
+

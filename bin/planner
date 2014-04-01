@@ -1,0 +1,207 @@
+#!/usr/local/bin/perl
+# -*- perl -*-
+
+# Copyright (c) 2014
+# Author: Jeff Weisberg <jaw @ solvemedia.com>
+# Created: 2014-Mar-25 12:16 (EDT)
+# Function: mrquincy map planner
+#   figure out which servers map which files
+#   automatically run by mrquincy, not by you
+
+my %opt;
+use Getopt::Std;
+
+BEGIN {
+    getopts('Ddv', \%opt) || die "usage.\n";
+
+    my $devlib = $ENV{ACDEVLIB} || "$ENV{HOME}/dev/adcopy/lib";
+    unshift @INC, ($opt{D} ? $devlib : '/home/adcopy/lib');
+}
+
+use AC::Misc;
+use AC::Yenta::Direct;
+use AC::Puzzles;
+use AC::ISOTime;
+use AC::Daemon;
+use AC::Dumper;
+use POSIX;
+use JSON;
+
+use strict;
+
+my $YDBFILE = "/home/acdata/logfile.ydb";
+
+my $MAPTARGETMIN = 2;			# try to have at least this many maps/server
+my $MAPSIZELIMIT = 250_000_000;
+
+
+# read config from stdin
+my $d;
+while(<>){ $d .= $_ }
+my $config = decode_json($d);
+# we expect:
+#   start, end	- time_t
+#   system, datamode, mrmode
+#   maps	- number of
+
+
+# defaults
+$config->{mrmode}   ||= 'prod';
+$config->{datamode} ||= 'prod';
+$config->{system}   ||= 'dancr';
+
+$opt{d} = 1 if $config->{debug};
+
+# get server list
+# get file list
+# plan job
+
+my @server = get_ac_servers( $config->{mrmode}, 'mrgamoo' );
+debug( "servers: " . scalar(@server));
+
+my $files  = get_file_list( $config );
+debug( "files: " . scalar(@$files));
+
+my $map    = plan_map();
+
+# send the data out:
+#  task #tasks
+#  map server size #files
+#  file filename
+
+$| = 1;
+
+print "task ", scalar(@$map), "\n";
+for my $task (@$map){
+    my $n = @{$task->{files}};
+    print "map $task->{server} $task->{size} $n\n";
+    for my $f (@{$task->{files}}){
+        print "file $f\n";
+
+        debug("map $task->{server} $f");
+    }
+}
+
+################################################################
+
+
+sub plan_map {
+
+    my %serverok = map{ $_->{id} => 1 } @server;
+    my %serversize;
+    my %serverfile;
+
+    # divy files up among servers
+    for my $f (sort { $b->{size} <=> $a->{size} } @$files){
+        # pick the one with the least so far
+        my $best;
+        for my $loc ( @{$f->{location}} ){
+            next unless $serverok{$loc};	# server up?
+            $best = $loc if !$best || ($serversize{$best} > $serversize{$loc});
+        }
+
+        error( "cannot plan map: no server available for $f->{filename}: [@{$f->{location}}]" ) unless $best;
+
+        $serversize{$best} += $f->{size};
+        push @{$serverfile{$best}}, $f;
+    }
+
+    # chunk them into tasks
+    my @task;
+    for my $s (keys %serversize){
+
+        my $ntask = ceil( $serversize{$s} / $MAPSIZELIMIT );
+        $ntask = $MAPTARGETMIN if $ntask < $MAPTARGETMIN;
+        my @tf;
+        my @ts;
+
+        for my $f ( @{$serverfile{$s}} ){
+            my $best;
+            for my $t (0 .. $ntask-1){
+                $best = $t if !defined($best) || ($ts[$best] > $ts[$t]);
+            }
+            $ts[$best] += $f->{size};
+            push @{ $tf[$best] }, $f->{filename};
+        }
+
+        for my $t (0 .. $ntask-1){
+            push @task, {
+                server	=> $s,
+                files	=> $tf[$t],
+                size	=> $ts[$t],
+            };
+        }
+    }
+
+    # print STDERR dumper(\@task), "\n";
+    return \@task;
+}
+
+# ask yenta for files that match
+sub get_file_list {
+    my $config = shift;
+
+    my $yenta = AC::Yenta::Direct->new( 'logfile', $YDBFILE );
+
+    my $mode  = $config->{datamode};
+    my $syst  = $config->{system};
+    my $tmax  = $config->{end};
+    my $tmin  = $config->{start};
+    my $start = isotime($tmin);
+    $start =~ s/^(\d+)T(\d+).*/$1$2/;	# 20091109T123456... => 20091109123456
+
+    # NB: keys in the yenta logfile map are of the form: 20100126150139_eqaB5uSerdeddsOw
+
+    $syst = undef if $syst eq '*';
+    $mode = undef if $mode eq '*';
+    $syst =~ s/[ ,]/\|/g;
+    if( $syst ){
+        $syst = qr/^($syst)$/;
+    }
+
+    debug("mode=$mode, syst=$syst, tmin=$tmin, tmax=$tmax, start=$start");
+    my @files = grep {
+        (!$mode || ($_->{environment} eq $mode)) &&
+        (!$syst || ($_->{subsystem}   =~ $syst)) &&
+        ($_->{end_time}    >= $tmin) &&
+        ($_->{start_time}  <= $tmax)
+    } map {
+        #debug("file: $_");
+        my $d = $yenta->get($_);
+        $d = $d ? decode_json($d) : {};
+        $d->{location} = [ (split /\s+/, $d->{location}) ];
+        $d;
+    } $yenta->getrange($start, undef);
+
+    debug("found " .scalar(@files)." files");
+    return \@files;
+}
+
+sub error {
+    verbose( @_ );
+    exit 1;
+}
+
+sub debug {
+    return unless $opt{d};
+    print STDERR "planner: @_\n";
+}
+
+
+
+
+__END__
+yenta file data:
+  {
+    end_time    => 1395707318
+    environment => prod
+    filename    => dancr/2014/03/25/00/2838_prod_fXnu.pgLrdtCRcP._.gz
+    location    => [
+      mrm@gefiltefish4-r4.ccsphl
+      mrm@gefiltefish7-r8.ccsphl
+    ]
+    sha1        => UUjptSXZs3OJpDqIEwqOIpsU1Yw
+    size        => 7983705
+    start_time  => 1395705564
+    subsystem   => dancr
+  }

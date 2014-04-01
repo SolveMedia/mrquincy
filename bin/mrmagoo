@@ -1,0 +1,170 @@
+#!/usr/local/bin/perl
+# -*- perl -*-
+
+# Copyright (c) 2010 by Jeff Weisberg
+# Author: Jeff Weisberg <jaw @ tcp4me.com>
+# Created: 2010-Jan-26 12:53 (EST)
+# Function: mrmagoo job submit client
+
+my %opt;
+use Getopt::Long qw(:config no_ignore_case);
+use Pod::Usage;
+BEGIN {
+    GetOptions(\%opt,
+           "check",
+           "verbose|v",
+           "debug|d",
+           "devlibs|D",
+           "console",
+           "dryrun|n",
+           "range=i",
+           "start=s",
+           "end=s",
+           "maps=i",	# NYI
+           "reduces=i",
+           "mrmode=s",
+           "datamode=s",
+           "system=s",
+           "master=s",
+           "report",
+           "help|h",
+           "man",
+          ) || exit;
+
+    my $devlib = $ENV{ACDEVLIB} || "$ENV{HOME}/dev/adcopy/lib";
+    unshift @INC, ($opt{devlibs} ? $devlib : '/home/adcopy/lib');
+};
+
+use AC::MrQuincy::Client;
+use AC::Puzzles;
+use AC::ISOTime;
+use AC::Dumper;
+use strict;
+
+pod2usage(-exitstatus => 0, -verbose => 2) if $opt{man};
+pod2usage(1) if $opt{help} or not $ARGV[0];
+
+# determine config from cmdline
+$opt{range} ||= 1;	# 1 day
+conf_time( \%opt, 'end',    int($^T / 86400) * 86400);		# today @ T00:00Z
+conf_time( \%opt, 'start',  $opt{end} - $opt{range} * 86400 );
+
+# parse the job
+my $mrm = AC::MrQuincy::Client->new( file => $ARGV[0] );
+$mrm->set_debug(1) if $opt{debug};
+$mrm->master( $opt{master} ) if $opt{master};
+
+# job compiler config
+my %conf = (
+    lang	=> 'perl',
+    libdir	=> ($opt{devlibs} ? "$ENV{HOME}/dev/adcopy/lib" : '/home/adcopy/lib'),
+    runinit	=> (!$opt{check}),
+   );
+
+# console config
+my %concf;
+$concf{debug}  = sub{ print STDERR "@_\n" } if $opt{debug};
+$concf{report} = sub{ print STDERR "@_\n" } if $opt{report};
+
+$mrm->compile( \%opt, %conf );
+
+if( $opt{check} ){
+    # NB. the compiler already checked
+    print STDERR "syntax OK\n";
+    exit 0;
+}
+
+$mrm->open_console() if $opt{console};
+
+# run job! run!
+my $id = $mrm->submit( seedlist() );
+die "could not run job\n" unless $id;
+
+print STDERR "job: $id\n" if $opt{verbose};
+$SIG{INT} = $SIG{QUIT} = sub{ $mrm->abort(); exit; };
+
+$mrm->run_console( %concf ) if $opt{console};
+
+exit;
+
+################################################################
+
+sub seedlist {
+    [ map { "$_->{addr}:$_->{port}" } get_ac_servers( ($opt{mrmode} || 'prod'), 'mrgamoo' ) ];
+}
+
+sub conf_time {
+    my $opt = shift;
+    my $k   = shift;
+    my $dfl = shift;
+
+    if( $opt->{$k} ){
+        # convert isotime => timet
+        $opt->{$k} = timeiso( $opt->{$k} );
+    }else{
+        $opt->{$k} = $dfl;
+    }
+}
+
+=head1 NAME
+
+mrmagoo - Submit a map reduce job
+
+=head1 SYNOPSIS
+
+mrmagoo [options] jobfile
+
+  Options:
+    --verbose   -v
+    --debug     -d
+    --report	      display some additional job stats
+    --check           Check syntax of jobfile and return
+
+    --devlibs   -D    Use development libs (Default: false)
+    --console         Don't fork to the background, display output
+    --dryrun    -n    Tell certain jobs not to store their results
+
+    --range           Days to report on   (Default: 1)
+    --start           ISO Start of report (Default: --end - --range)
+    --end             ISO End of report   (Default: Today at 00:00:00)
+
+    --maps            # NOT IMPLEMENTED
+    --reduces         number of processes per reduce step to use
+
+    --mrmode          Job cluster to run on (prod|dev)         (Default: prod)
+    --datamode        Dataset to work on (prod|dev)            (Default: prod)
+    --system          Subsystem to report on (dancr|banner|'') (Default: dancr)
+
+    --master          Force master job server (use absolute hostname) (Default: automatically selected)
+
+    --help      -h    usage details
+    --man             full documentation and examples
+
+=head1 EXAMPLES
+
+Run a job against production data from the dancer servers using production job
+cluster for the last 7 days in the foreground.
+
+=over 8
+
+mrmagoo --console --range=7 mrjob/sample_job
+
+=back
+
+Run a job against development data from all subsystems using the production
+job cluster from 2010-06-01 to 2010-06-14 in the background.  Note you will see
+no output, useful for jobs that store their results elsewhere (e.g.
+PostgreSQL)
+
+=over 8
+
+mrmagoo --datamode=dev --system='' \
+  --start='2010-06-01T000000' \
+  --end='2010-06-14T000000' \
+  mrjob/sample_job
+
+=back
+
+=cut
+
+

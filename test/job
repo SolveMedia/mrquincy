@@ -1,0 +1,77 @@
+#!/usr/local/bin/perl
+# -*- perl -*-
+
+# Copyright (c) 2014
+# Author: Jeff Weisberg <jaw @ solvemedia.com>
+# Created: 2014-Mar-26 12:29 (EDT)
+# Function: 
+
+use lib '/home/adcopy/lib';
+use lib '/home/bagel/u/jaw/dev/adcopy/src/mrquincy/lib';
+
+use AC::Protocol;
+use AC::Dumper;
+use AC::Misc;
+use JSON;
+use Socket;
+
+require 'proto/std_reply.pl';
+require 'proto/mrmagoo.pl';
+
+use strict;
+
+my $prog;
+while(<DATA>){ $prog .= $_ }
+
+my $req = AC::Protocol->encode_request( {
+    type        => 'mrmagoo_jobcreate',
+    msgidno     => $$,
+    want_reply  => 1,
+}, {
+    jobid	=> unique(),
+    master	=> '127.0.0.1:3509',
+    options	=> encode_json({
+        start	=> ($^T - 48*3600),
+        end	=> ($^T - 24*3600),
+    }),
+    initres	=> 'initdata',
+    traceinfo	=> "my job",
+    section	=> [
+        { phase => 'map', 	src => $prog },
+        { phase => 'reduce/0',  src => $prog },
+#        { phase => 'reduce/1',  src => $prog },
+#        { phase => 'final', 	src => $prog },
+    ],
+
+} );
+
+
+my $res = AC::Protocol->send_request( inet_aton("127.0.0.1"), 3509, $req,
+                                      sub{ print STDERR "@_\n" } );
+
+if( $res && $res->{data} ){
+    $res->{data} = AC::Protocol->decode_reply( $res );
+}
+
+
+print STDERR "result ", dumper($res), "\n";
+
+
+__END__
+#!/usr/local/bin/perl
+use JSON;
+use strict;
+
+open STDDAT, '>&=', 3;
+select STDDAT; $| = 1;
+
+my $x = 'aaaaaaa';
+
+while(<>){
+    next unless /solved/;
+
+    my $key = $x++;
+    my $val = $key;
+    print STDDAT encode_json( [$key, $val]), "\n";
+}
+

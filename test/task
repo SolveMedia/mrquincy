@@ -1,0 +1,93 @@
+#!/usr/local/bin/perl
+# -*- perl -*-
+
+# Copyright (c) 2014
+# Author: Jeff Weisberg <jaw @ solvemedia.com>
+# Created: 2014-Mar-13 15:32 (EDT)
+# Function: 
+
+use lib '/home/adcopy/lib';
+use lib '/home/bagel/u/jaw/dev/adcopy/src/mrquincy/lib';
+use AC::Protocol;
+use AC::Dumper;
+use AC::Misc;
+use Socket;
+
+require 'proto/std_reply.pl';
+require 'proto/mrmagoo.pl';
+
+use strict;
+
+my $prog;
+while(<DATA>){ $prog .= $_ }
+
+
+my $req = AC::Protocol->encode_request( {
+    type        => 'mrmagoo_taskcreate',
+    msgidno     => $$,
+    want_reply  => 1,
+}, {
+    jobid	=> unique(),
+    taskid	=> unique(),
+    master	=> '127.0.0.1:3509',
+    jobsrc	=> $prog,
+    options	=> 'options',
+    initres	=> 'initdata',
+    phase	=> 'map',
+    outfile	=> ['map1.out', 'map2.out', 'map3.out', 'map4.out'],
+    infile	=> [ qw(data/0732_prod_54zF.rpJrdtCe8NI_.gz data/0902_prod_S4zF.uZ0rdedzcP8_.gz data/1212_prod_go7F.sC-rdtCdMMD_.gz data/3140_prod_OYTF.tt-rdedCMNU_.gz) ],
+} );
+
+
+my $res = AC::Protocol->send_request( inet_aton("127.0.0.1"), 3509, $req,
+                                      sub{ print STDERR "@_\n" } );
+
+if( $res && $res->{data} ){
+    $res->{data} = AC::Protocol->decode_reply( $res );
+}
+
+
+print STDERR "result ", dumper($res), "\n";
+
+
+__END__
+#!/usr/local/bin/perl
+use lib '/home/adcopy/lib';
+# use AC::Logfile;
+use JSON;
+use strict;
+
+sub parse_dancr_log {
+    my $l = shift;
+
+    $l =~ s/^v1\s+//;
+
+    my %d = map {
+        my($k,$v) = (split /:\s+/);
+        # $v =~ s/%(..)/chr(hex $1)/ge;   # url decode
+        ($k, $v);
+    } split /,\s+/, $l;
+
+    return \%d;
+
+}
+
+
+# $| = 1;
+open STDDAT, '>&=', 3;
+#select STDDAT; $| = 1;
+
+while(<>){
+    chop;
+    my $d = parse_dancr_log($_);
+
+    #print STDOUT "output!\n";
+    #print STDERR "errors!\n";
+
+    my $key = $d->{userid};
+    my $val = { ua => $d->{useragent}, caps => $d->{usercaps} };
+    print STDDAT encode_json( [$key, $val]), "\n";
+
+}
+
+

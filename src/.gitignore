@@ -1,0 +1,4 @@
+*.o
+mrquincyd
+*.pb.cc
+*.pb.h

@@ -1,0 +1,48 @@
+#!/usr/local/bin/perl
+# -*- perl -*-
+
+# Copyright (c) 2014
+# Author: Jeff Weisberg <jaw @ solvemedia.com>
+# Created: 2014-Mar-13 15:32 (EDT)
+# Function: 
+
+use lib '/home/bagel/u/jaw/dev/adcopy/lib';
+use AC::Protocol;
+use AC::Dumper;
+use AC::Misc;
+use Digest::SHA1 'sha1_base64';
+use Socket;
+
+require 'AC/protobuf/scrible.pl';
+
+use strict;
+
+
+my $content = "abcdef\n12345\n" x 16;
+
+my $req = AC::Protocol->encode_request( {
+    type        => 'scribl_put',
+    msgidno     => $$,
+    want_reply  => 1,
+}, {
+    filename	=> 'foobar',
+    hash_sha1	=> sha1_base64($content),
+}, \$content );
+
+
+my $s = AC::Protocol->connect_to_server( inet_aton('127.0.0.1'), 3509, 1 );
+die "connect failed\n" unless $s;
+
+# send req
+AC::Protocol->write_request($s, $req, 60);
+AC::Protocol->write_request($s, $content, 60);
+
+my $buf = AC::Protocol->read_data($s, 28, 60);
+my $p   = AC::Protocol->decode_header($buf);
+if( $p->{data_length} ){
+    $p->{data} = AC::Protocol->read_data($s, $p->{data_length}, 60);
+    $p->{data} = AC::Protocol->decode_reply($p);
+}
+
+print STDERR dumper($p), "\n";
+

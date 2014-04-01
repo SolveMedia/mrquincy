@@ -1,0 +1,44 @@
+#!/usr/local/bin/perl
+# -*- perl -*-
+
+# Copyright (c) 2014
+# Author: Jeff Weisberg <jaw @ solvemedia.com>
+# Created: 2014-Apr-01 10:57 (EDT)
+# Function: 
+
+#use lib '/home/adcopy/lib';
+use lib '/home/bagel/u/jaw/dev/adcopy/src/mrquincy/lib';
+use lib '/home/bagel/u/jaw/dev/adcopy/lib';
+
+use AC::MrQuincy::Client;
+use AC::Dumper;
+use AC::Misc;
+use strict;
+
+
+my $opts = {
+    start	=> $^T-48*3600,
+    end		=> $^T-24*3600,
+    system	=> 'dancr',
+};
+
+my $mrm = AC::MrQuincy::Client->new( file => '../../mrjob/test2' );
+
+$mrm->set_debug(1);
+$mrm->master( "whitefish:3509" );
+
+$mrm->compile( $opts,
+               lang	=> 'perl',
+               libdir	=> [ '/home/bagel/u/jaw/dev/adcopy/src/mrquincy/lib', '/home/bagel/u/jaw/dev/adcopy/lib' ],
+               runinit	=> 1,
+              );
+
+
+$mrm->open_console();
+
+$mrm->submit();
+$mrm->run_console(
+    debug	=> sub { print STDERR "debug: @_\n"; },
+    report	=> sub { print STDERR "stats: @_\n"; },
+   );
+

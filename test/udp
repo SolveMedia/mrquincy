@@ -1,0 +1,25 @@
+#!/usr/local/bin/perl
+# -*- perl -*-
+
+# Copyright (c) 2014
+# Author: Jeff Weisberg <jaw @ solvemedia.com>
+# Created: 2014-Mar-28 14:08 (EDT)
+# Function: 
+
+use lib '/home/adcopy/lib';
+use AC::Protocol;
+use AC::Dumper;
+use AC::Misc;
+use Socket;
+
+require 'AC/protobuf/std_reply.pl';
+require 'AC/protobuf/mrmagoo.pl';
+
+use strict;
+
+my $req = 'abcd1234';
+
+my $s;
+socket($s, PF_INET, SOCK_DGRAM, 0);
+my $e = send($s, $req, 0, sockaddr_in(3509, inet_aton('8.20.87.25')));
+

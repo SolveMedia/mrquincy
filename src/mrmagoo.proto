@@ -1,0 +1,103 @@
+// Copyright (c) 2009 AdCopy
+// Author: Jeff Weisberg
+// Created: 2009-Dec-21 17:03 (EST)
+// Function: 
+
+
+import "std_ipport.proto";
+
+message ACPMRMStatus {
+        required string         hostname        = 1;
+        required string         datacenter      = 2;
+	required string		subsystem	= 3;
+        required string         environment     = 4;
+        required string         via             = 5;
+        repeated ACPIPPort      ip              = 6;
+        required int32          status          = 7;
+        required int64          timestamp       = 8;
+        required int64          lastup          = 9;
+	optional int32		sort_metric	= 12;
+        required string         server_id       = 13;
+        optional string         path            = 15;   // for debugging
+};
+
+message ACPMRMStatusRequest {
+        optional ACPMRMStatus  myself          = 1;
+};
+
+message ACPMRMStatusReply {
+        repeated ACPMRMStatus  status          = 1;
+};
+
+//****************************************************************
+
+message ACPMRMJobPhase {
+        required string         phase           = 1;
+        required bytes          src             = 2;
+        optional int32          maxrun          = 3;
+        optional int32          timeout         = 4;
+}
+
+
+message ACPMRMJobCreate {
+        required string         jobid           = 1;
+        required string         options         = 3;		// json config for planner
+        optional string         console         = 5;            // ipaddr:port
+        optional string         traceinfo       = 6;
+        repeated ACPMRMJobPhase section         = 7;
+        optional int32          reduce_width    = 8;
+}
+
+message ACPMRMJobAbort {
+        required string         jobid           = 1;
+}
+
+message ACPMRMTaskCreate {
+        required string         jobid           = 1;
+        required string         taskid          = 2;
+        required bytes          jobsrc          = 3;
+
+        required string         phase           = 6;
+        repeated string         outfile         = 7;
+        repeated string         infile          = 8;
+        optional string         master          = 9;            // ipaddr:port
+        optional string         console         = 10;           // ipaddr:port
+
+        optional int32          maxrun          = 11;
+        optional int32          timeout         = 12;
+}
+
+// task or xfer
+message ACPMRMActionStatus {
+        required string         jobid           = 1;
+        required string         xid             = 2;
+        required string         phase           = 3;
+        optional int32          progress        = 4;
+}
+
+
+message ACPMRMTaskAbort {
+        required string         jobid           = 1;
+        required string         taskid          = 2;
+}
+
+message ACPMRMFileXfer {
+        required string         jobid           = 1;
+        required string         copyid          = 2;
+        required string         filename        = 3;            // remote name of file
+        optional string         dstname         = 4;            // dst name of file
+        repeated string         location        = 5;
+        optional string         master          = 6;            // ipaddr:port
+        optional string         console         = 7;            // ipaddr:port
+}
+
+message ACPMRMFileDel {
+        repeated string         filename        = 1;
+}
+
+message ACPMRMDiagMsg {
+        required string         jobid           = 1;
+        required string         type            = 2;
+        required string         msg             = 3;
+        optional string         server_id       = 4;
+}
