@@ -1,0 +1,48 @@
+# Copyright (c) 2009 by Jeff Weisberg
+# Author: Jeff Weisberg <jaw @ tcp4me.com>
+# Created: 2009-Dec-14 13:41 (EST)
+# Function: example config
+#
+# $Id$
+
+port            3506
+syslog          local4
+environment	dev
+
+# allow connections from:
+allow		127.0.0.1
+allow           10.100.1.0/23
+allow           10.100.2.0/23
+
+# the data files are located:
+basedir          /tmp/aclogs
+
+# initial peers
+seedpeer        10.100.1.10:3506
+seedpeer        10.100.1.11:3506
+seedpeer        10.100.2.10:3506
+seedpeer        10.100.2.11:3506
+
+# email?
+error_mailto	sysadmin@example.com
+error_mailfrom	"Mr Quincy Daemon" <nobody@example.com>
+
+# the location of the planner
+planprog        /home/mrquincy/bin/planner
+
+
+# enable debugging?
+debuglevel	8
+
+#debug            network
+#debug            config
+#debug            scriblr
+#debug            kibitz_server
+#debug            kibitz_client
+#debug            peerdb
+#debug            peer
+#debug            xfer
+debug            task
+#debug            mapio
+debug            job
+
