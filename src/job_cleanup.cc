@@ -88,6 +88,7 @@ Job::do_deletes(void){
     jobdir.append( jobid() );
 
 
+    return;
     _lock.r_lock();
 
     for(int idx=0; idx<_servers.size(); idx++){
@@ -99,8 +100,10 @@ Job::do_deletes(void){
             req.add_filename( d->_filename );
             ndele++;
 
-            if( req.filename_size() >= MAXFILES )
+            if( req.filename_size() >= MAXFILES ){
                 make_request(srvr, PHMT_MR_FILEDEL, &req, TIMEOUT);
+                req.clear_filename();
+            }
         }
 
         // remove job dir

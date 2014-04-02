@@ -307,14 +307,14 @@ tcp_connect(NetAddr *na, int to){
 
     int fd = socket(PF_INET, SOCK_STREAM, 0);
     if( fd == -1 ){
-	FATAL("cannot create tcp4 socket");
+	FATAL("cannot create tcp4 socket: %s", strerror(errno));
     }
 
     init_tcp(fd);
 
     int i = connect(fd, (sockaddr*)&sa, sizeof(sa));
     if( i == -1 && errno != EINPROGRESS ){
-        DEBUG("cannot connect");
+        DEBUG("cannot connect: %s", strerror(errno));
         close(fd);
         return -1;
     }

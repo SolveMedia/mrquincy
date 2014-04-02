@@ -328,31 +328,32 @@ Job::send_eu_msg_x(const char *type, const char *msg) const{
     }
 }
 
+
 void
-Job::kvetch(const char *msg, const char *arg) const {
+Job::kvetch(const char *msg, const char *arg1, const char *arg2, const char *arg3) const {
     char buf[1024];
 
-    snprintf(buf, sizeof(buf), msg, arg);
+    snprintf(buf, sizeof(buf), msg, arg1, arg2, arg3);
     VERBOSE("%s", buf);
 
-    send_eu_msg_x("stderr", buf);
+    send_eu_msg_x("error", buf);
 }
 
 void
-Job::inform(const char *msg, const char *arg) const {
+Job::inform(const char *msg, const char *arg1, const char *arg2, const char *arg3) const {
     char buf[1024];
 
-    snprintf(buf, sizeof(buf), msg, arg);
+    snprintf(buf, sizeof(buf), msg, arg1, arg2, arg3);
     DEBUG("job: %s %s", jobid().c_str(), buf);
 
     send_eu_msg_x("debug", buf);
 }
 
 void
-Job::report(const char *msg, const char *arg) const {
+Job::report(const char *msg, const char *arg1, const char *arg2, const char *arg3) const {
     char buf[1024];
 
-    snprintf(buf, sizeof(buf), msg, arg);
+    snprintf(buf, sizeof(buf), msg, arg1, arg2, arg3);
     VERBOSE("job: %s %s", jobid().c_str(), buf);
 
     send_eu_msg_x("report", buf);

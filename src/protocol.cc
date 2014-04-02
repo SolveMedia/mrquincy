@@ -101,14 +101,13 @@ write_request(NTD *ntd, int reqno, google::protobuf::Message *g, int contlen, in
 int
 write_reply(NTD *ntd, google::protobuf::Message *g, int contlen, int to){
     protocol_header *phi = (protocol_header*) ntd->gpbuf_in;
+    protocol_header *pho = (protocol_header*) ntd->gpbuf_out;
 
     if( !(phi->flags & PHFLAG_WANTREPLY) ) return 0;
 
     string gout;
     g->SerializeToString( &gout );
     int gsz = gout.length();
-    ntd->out_resize( sizeof(protocol_header) + gsz );
-    protocol_header *pho = (protocol_header*) ntd->gpbuf_out;
 
     ntd_copy_header_for_reply(ntd);
     pho->flags          = PHFLAG_ISREPLY;

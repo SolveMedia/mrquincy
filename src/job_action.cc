@@ -115,7 +115,7 @@ TaskToDo::maybe_start(void){
     if( !_tries )
         create_deles();
 
-    _job->inform("starting task %s", _xid.c_str());
+    _job->inform("starting task %s - %s on %s", _xid.c_str(), _g.phase().c_str(), _job->_servers[ _serveridx ]->name.c_str());
     _job->_servers[ _serveridx ]->_n_task_running ++;
     _job->_n_task_running ++;
     _job->_n_tasks_run ++;
@@ -135,7 +135,7 @@ XferToDo::maybe_start(void){
     if( _job->_servers[ _serveridx ]->_n_xfer_running >= SERVERXFERMAX ) return 0;
     if( ! start_check() ) return 0;
 
-    _job->inform("starting xfer %s", _xid.c_str());
+    _job->inform("starting xfer %s - %s : %s", _xid.c_str(), _g.filename().c_str(), _job->_servers[ _serveridx ]->name.c_str());
     _job->_servers[ _serveridx ]->_n_xfer_running ++;
     _job->_n_xfer_running ++;
     _job->_n_xfers_run ++;

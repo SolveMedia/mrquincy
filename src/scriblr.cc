@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 #define TIMEOUT		15
 
@@ -135,7 +136,7 @@ scriblr_save_file(int fd, const string *filename, int size, string *hash, int to
 
     FILE *f = fopen( tmp.c_str(), "w" );
     if( !f ){
-        PROBLEM("cannot save file %s", tmp.c_str());
+        PROBLEM("cannot save file %s: %s", tmp.c_str(), strerror(errno));
         return 0;
     }
 
@@ -219,7 +220,7 @@ scriblr_put(NTD *ntd){
 
     FILE *f = fopen( tmp.c_str(), "w" );
     if( !f ){
-        PROBLEM("cannot save file %s", tmp.c_str());
+        PROBLEM("cannot put file %s: %s", tmp.c_str(), strerror(errno));
         return reply(ntd, 500, "Error", 0);
     }
 

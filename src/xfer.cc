@@ -251,6 +251,8 @@ try_xfer(Xfer *g, int l){
         dstfile = g->mutable_filename();
 
     s = scriblr_save_file(fd, dstfile, phi->content_length, res.mutable_hash_sha1(), TIMEOUT );
+    close(fd);
+
     if( !s ){
         DEBUG("save file failed");
         return 0;

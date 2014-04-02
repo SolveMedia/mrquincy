@@ -114,7 +114,7 @@ Pipeline::Pipeline(const ACPMRMTaskCreate *g, int* outfds){
 
     DEBUG("tmpfile: %s", _tmpfile.c_str());
 
-    int tfd = open( _tmpfile.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0700 );
+    int tfd = open( _tmpfile.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0755 );
     if( tfd < 0 ) _fail("open failed");
     const string *jobsrc = & g->jobsrc();
     write( tfd, jobsrc->c_str(), jobsrc->size() );
@@ -226,6 +226,7 @@ spawn(const char *prog, const ACPMRMTaskCreate *g, int fin, int fout, int ferr, 
     setreuid(65535, 65535);
 
     execv(prog, (char**)argv);
+    VERBOSE("exec failed %s: %s", prog, strerror(errno));
     _fail("exec failed");
 }
 

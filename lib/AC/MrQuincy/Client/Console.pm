@@ -19,6 +19,7 @@ sub output {
     AC::DC::IO->request_exit() if $req->{type} eq 'finish';
 
     print STDERR "$req->{msg}"                               if $req->{type} eq 'stderr';
+    print STDERR "$req->{msg}\n"                             if $req->{type} eq 'error';
     print "$req->{msg}"                                      if $req->{type} eq 'stdout';
 
     my $f = $mrm->{console}{ $req->{type} };

@@ -41,6 +41,7 @@ Job::Job(){
     _run_start      = 0;
     _run_time       = 0;
     _task_run_time  = 0;
+    _totalmapsize   = 0;
 
 }
 

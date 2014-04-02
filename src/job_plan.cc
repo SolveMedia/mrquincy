@@ -78,7 +78,7 @@ Job::plan(void){
 
     ostringstream b;
     b << "job: " << jobid()
-      << " plan: bytes: " << (_totalmapsize / 1000000)
+      << " plan: bytes: " << (_totalmapsize / 1000000LL)
       << " MB, maps: " << maps
       << ", reduces: " << (_plan.size() - 1) << "x" << reduce_width();
 
@@ -431,23 +431,23 @@ Job::plan_files(void){
     int nstep  = section_size();
     int width  = reduce_width();
     int nserv  = _servers.size();
-    int prevnt = 0;
 
-    // start at final + work forward
-    for(int i=nstep-1; i>=0; i--){
+    for(int i=0; i<nstep; i++){
         Step *step = _plan[i];
         int ntask  = step->_tasks.size();
-
         int infile, outfile;
 
         if( !step->_phase.compare("final") ){
-            infile  = width;
             outfile = 1;
-        }else{
-            infile  = width;
-            outfile = prevnt;
+            infile  = _plan[i-1]->_tasks.size();
         }
-        prevnt = ntask;
+        else if( !step->_phase.compare("map") ){
+            outfile = (nstep > 1) ? _plan[i+1]->_tasks.size() : 1;
+            infile  = 0;	// already figured
+        }else{
+            outfile = (nstep > i+1) ? _plan[i+1]->_tasks.size() : 1;
+            infile  = _plan[i-1]->_tasks.size();
+        }
 
         for(int j=0; j<ntask; j++){
             TaskToDo *t = step->_tasks[j];

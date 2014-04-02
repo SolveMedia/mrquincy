@@ -71,18 +71,26 @@ my $map    = plan_map();
 
 $| = 1;
 
+open( TMP, '>', "/tmp/plan" );
 print "task ", scalar(@$map), "\n";
 for my $task (@$map){
     my $n = @{$task->{files}};
     print "map $task->{server} $task->{size} $n\n";
+    print TMP "map $task->{server} $task->{size} $n\n";
     for my $f (@{$task->{files}}){
         print "file $f\n";
+        print TMP "file $f\n";
 
-        debug("map $task->{server} $f");
+
+        # debug("map $task->{server} $f");
     }
 }
 
 ################################################################
+
+# servers #
+# serverid
+# ...
 
 sub read_server_list {
 

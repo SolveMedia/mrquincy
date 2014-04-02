@@ -20,10 +20,16 @@
 
 #include <strings.h>
 
+#include <sstream>
+#include <iomanip>
+using std::ostringstream;
+
+
 
 #define KEEPDOWN	300	// keep data about down servers for how long?
 #define KEEPLOST	600	// keep data about servers we have not heard about for how long?
 #define KEEPDEAD	300	// keep data in the graveyard
+#define HYSTERESIS	 30
 
 PeerDB *peerdb = 0;
 
@@ -48,25 +54,28 @@ peerdb_periodic(void *notused){
     }
 }
 
+// report peers, status, + metrics - for diag
 int
 PeerDB::report(NTD *ntd){
 
-    string out;
+    ostringstream out;
     _lock.r_lock();
 
     for(list<Peer*>::const_iterator it=_allpeers.begin(); it != _allpeers.end(); it++){
         const Peer *p = *it;
 
-        out.append( p->_id );
-        // ...
-        out.append( "\n" );
+        out << std::setw(30) << std::left  << p->_id
+            << std::setw(4)  << std::right << p->_gstatus->status()
+            << std::setw(8)  << std::right << p->_gstatus->sort_metric()
+            << std::setw(10) << std::right << p->_gstatus->capacity_metric()
+            << "\n";
 
     }
     _lock.r_unlock();
 
-    int sz = out.length();
+    int sz = out.str().length();
     ntd->out_resize( sz + 1 );
-    memcpy(ntd->gpbuf_out, out.c_str(), sz);
+    memcpy(ntd->gpbuf_out, out.str().c_str(), sz);
 
     return sz;
 }
@@ -283,10 +292,10 @@ PeerDB::_kill(Peer *p){
 static int
 _update_ok(ACPMRMStatus *g){
 
-    if( ! myserver_id.compare( g->server_id() ) )         return 0;	// don't want my own info
-    if( config->environment.compare( g->environment() ) ) return 0;	// same env?
-    if( g->subsystem().compare("mrquincy") )               return 0;	// and subsystem?
-    if( g->timestamp() < lr_now() - KEEPDOWN )            return 0;	// we'd just toss it out
+    if( ! myserver_id.compare( g->server_id() ) )             return 0; // don't want my own info
+    if( config->environment.compare( g->environment() ) )     return 0; // same env?
+    if( g->subsystem().compare("mrquincy") )                  return 0; // and subsystem?
+    if( g->timestamp() < lr_now() - KEEPDOWN - HYSTERESIS )   return 0; // we'd just toss it out
 
     return 1;
 }
@@ -304,6 +313,7 @@ PeerDB::add_peer(ACPMRMStatus *g){
     if( p ){
         if( p->status() == PEER_STATUS_SCEPTICAL ){
             _upgrade(p);
+            VERBOSE("discovered new peer %s", id->c_str());
         }
 
         DEBUG("update existing %s", id->c_str());
