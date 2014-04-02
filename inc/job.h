@@ -203,6 +203,7 @@ public:
     void		inform(const char *m, const char *a=0) const;		// diags
     void		report(const char *m, const char *a=0) const;		// stats
     void		report_finish(void) const;
+    void		send_server_list(int);
 
     friend class QueuedJob;
     friend class Step;

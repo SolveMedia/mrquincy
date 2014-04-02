@@ -34,6 +34,9 @@ my $YDBFILE = "/home/acdata/logfile.ydb";
 my $MAPTARGETMIN = 2;			# try to have at least this many maps/server
 my $MAPSIZELIMIT = 250_000_000;
 
+# read servers from stdin
+my @server;
+read_server_list();
 
 # read config from stdin
 my $d;
@@ -52,13 +55,10 @@ $config->{system}   ||= 'dancr';
 
 $opt{d} = 1 if $config->{debug};
 
-# get server list
 # get file list
 # plan job
 
-my @server = get_ac_servers( $config->{mrmode}, 'mrgamoo' );
 debug( "servers: " . scalar(@server));
-
 my $files  = get_file_list( $config );
 debug( "files: " . scalar(@$files));
 
@@ -84,10 +84,20 @@ for my $task (@$map){
 
 ################################################################
 
+sub read_server_list {
+
+    my $sl = <>;
+    my($sn) = $sl =~ /servers\s+(\d+)/;
+    for (1 .. $sn){
+        chop(my $s = <>);
+        push @server, $s;
+    }
+}
+
 
 sub plan_map {
 
-    my %serverok = map{ $_->{id} => 1 } @server;
+    my %serverok = map{ $_ => 1 } @server;
     my %serversize;
     my %serverfile;
 

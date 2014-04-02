@@ -184,6 +184,9 @@ run_planner(Job *j, const string *opts, int *pid){
     close(fdin[0]);
     close(fdout[1]);
 
+    // send list of servers
+    j->send_server_list( fdin[1] );
+
     // send options data
     write_to( fdin[1], opts->c_str(), opts->size(), WRITE_TIMEOUT );
     write_to( fdin[1], "\n", 1, WRITE_TIMEOUT );
@@ -191,6 +194,19 @@ run_planner(Job *j, const string *opts, int *pid){
 
     return fdout[0];
 }
+
+void
+Job::send_server_list(int fd){
+    char buf[32];
+
+    int len = snprintf(buf, sizeof(buf), "servers %d\n", _servers.size());
+    write_to( fd, buf, len, WRITE_TIMEOUT );
+    for(int i=0; i<_servers.size(); i++){
+        write_to(fd, _servers[i]->name.c_str(), _servers[i]->name.size(), WRITE_TIMEOUT );
+        write_to(fd, "\n", 1, WRITE_TIMEOUT );
+    }
+}
+
 
 void
 wait_for_fd(int fd){
