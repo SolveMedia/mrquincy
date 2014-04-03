@@ -52,14 +52,27 @@ static void
 sigexit(int sig){
     VERBOSE("caught signal %d - exiting", sig);
 
-    if( !i_am_parent && sig == 15 ){
-	// in child. exit
+    if( !i_am_parent || !childpid ){
+	// in child (or running -f) exit
         runmode.shutdown();
 	return;
     }
 
     exit(EXIT_NORMAL_EXIT);
     // NB - parent will kill child in finish()
+}
+
+
+static void
+sigterm(int sig){
+
+    if( !i_am_parent || !childpid ){
+        VERBOSE("caught signal %d - gracefully winding down", sig);
+        runmode.winddown();
+        return;
+    }
+
+    sigexit(sig);
 }
 
 static void
@@ -94,11 +107,10 @@ daemon_siginit(void){
 
     // sig handlers
     install_handler(SIGHUP,   sigrestart);
-    install_handler(SIGINT,   sigexit);
     install_handler(SIGQUIT,  sigexit);
-    install_handler(SIGTERM,  sigexit);
+    install_handler(SIGTERM,  sigterm );
+    install_handler(SIGINT,   sigterm );
     install_handler(SIGPIPE,  SIG_IGN);
-
 }
 
 

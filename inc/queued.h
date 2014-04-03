@@ -21,13 +21,14 @@ protected:
 public:
     void enqueue(void*);
     void *dequeue(void);
-    int  nrunning(void){ return _running.size(); }
+    int  nrunning(void);
     void start_more(int);
     bool is_dupe(void*);
     virtual void start(void*) = 0;
     virtual void send_status(void*) = 0;
     virtual bool same(void*, void*) = 0;
     virtual void json1(const char *, void *, string *) = 0;
+    virtual void shutdown(void) = 0;
     void done(void*);
     void json(string *);
 
@@ -41,6 +42,7 @@ public:
     virtual void send_status(void*);
     virtual bool same(void*, void*);
     virtual void json1(const char *, void *, string *);
+    virtual void shutdown(void) {};
 };
 
 class QueuedTask : public Queued {
@@ -50,6 +52,7 @@ public:
     virtual void send_status(void*);
     virtual bool same(void*, void*);
     virtual void json1(const char *, void *, string *);
+    virtual void shutdown(void);
     void abort(const string *);
 };
 
@@ -60,6 +63,7 @@ public:
     virtual void send_status(void*) {};
     virtual bool same(void*, void*);
     virtual void json1(const char *, void *, string *);
+    virtual void shutdown(void);
     void abort(const string *);
     int  update(ACPMRMActionStatus*);
 };

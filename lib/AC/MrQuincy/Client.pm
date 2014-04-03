@@ -74,7 +74,7 @@ sub id {
 }
 
 # use the specified master
-sub master {
+sub set_master {
     my $me     = shift;
     my $master = shift;
 
@@ -87,7 +87,6 @@ sub set_debug {
 
     $me->{fdebug} = $en ? sub { print STDERR "@_\n" } : sub{};
 }
-
 
 ################################################################
 
@@ -141,11 +140,11 @@ sub abort {
 
     return unless $me->{master};
     my $res = $me->_submit_to( $me->{master}{addr}, $me->{master}{port}, AC::Protocol->encode_request( {
-        type		=> 'mrgamoo_jobabort',
+        type		=> 'mrmagoo_jobabort',
         msgidno		=> $^T,
         want_reply	=> 1,
     }, {
-        jobid		=> $me->{id},
+        jobid		=> $me->{job}{jobid},
     }));
 
 }

@@ -84,25 +84,29 @@ Job::do_deletes(void){
     ACPMRMFileDel req;
     int ndele = 0;
 
+    _lock.r_lock();
+    int nserv = _servers.size();
     string jobdir = "mrtmp/j_";	// see also: job_plan.cc
     jobdir.append( jobid() );
+    _lock.r_unlock();
 
-
-    return;
-    _lock.r_lock();
-
-    for(int idx=0; idx<_servers.size(); idx++){
+    for(int idx=0; idx<nserv; idx++){
+        _lock.r_lock();
         Server *srvr = _servers[idx];
+        list<Delete*> dele = srvr->_to_delete;
+        _lock.r_unlock();
+
         req.clear_filename();
 
-        for(list<Delete*>::iterator it=srvr->_to_delete.begin(); it != srvr->_to_delete.end(); it++){
+        for(list<Delete*>::iterator it=dele.begin(); it != dele.end(); it++){
             Delete *d = *it;
             req.add_filename( d->_filename );
             ndele++;
 
             if( req.filename_size() >= MAXFILES ){
-                make_request(srvr, PHMT_MR_FILEDEL, &req, TIMEOUT);
+                int ok = make_request(srvr, PHMT_MR_FILEDEL, &req, TIMEOUT);
                 req.clear_filename();
+                if( !ok ) break;	// server pro'ly down
             }
         }
 
@@ -112,8 +116,6 @@ Job::do_deletes(void){
         if( req.filename_size() )
             make_request(srvr, PHMT_MR_FILEDEL, &req, TIMEOUT);
     }
-
-    _lock.r_unlock();
 
     _lock.w_lock();
     _n_deleted = ndele;

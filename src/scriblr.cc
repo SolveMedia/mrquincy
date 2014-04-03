@@ -147,7 +147,7 @@ scriblr_save_file(int fd, const string *filename, int size, string *hash, int to
     // NB: there is no reverse-sendfile
     while( writ != size ){
         int s = size - writ;
-        if( s > sizeof(buf) ) size = sizeof(buf);
+        if( s > sizeof(buf) ) s = sizeof(buf);
 
         int r = read_to(fd, buf, s, to);
         DEBUG("read %d -> %d", s, r);
@@ -160,7 +160,10 @@ scriblr_save_file(int fd, const string *filename, int size, string *hash, int to
 
     // verify
     int vfysz  = file_size( tmp.c_str() );
-    file_hash( tmp.c_str(), buf, sizeof(buf) );
+    if( vfysz > 0 )
+        file_hash( tmp.c_str(), buf, sizeof(buf) );
+    else
+        buf[0] = 0;
 
     if( vfysz != size || hash->compare(buf) ){
         VERBOSE("verify failed %s, %d %s != %d %s", tmp.c_str(), size, hash->c_str(), vfysz, buf);
@@ -197,68 +200,6 @@ scriblr_put(NTD *ntd){
     if( !r )
         return reply(ntd, 500, "Error", 0);
 
-
-#if 0
-    // file -> dir, file
-    string file = config->basedir;
-    file.append("/");
-    file.append( req.filename() );
-    DEBUG("filename: %s", file.c_str());
-
-    // create dirs
-    int lsl = file.rfind('/');
-    string dir;
-    if( lsl != -1 ){
-        dir.append(file, 0, lsl);
-        mkdirp( dir.c_str(), 0777 );
-    }
-    DEBUG("dir: %s", dir.c_str());
-
-    // open tmp file
-    string tmp = file;
-    tmp.append(".tmp");
-
-    FILE *f = fopen( tmp.c_str(), "w" );
-    if( !f ){
-        PROBLEM("cannot put file %s: %s", tmp.c_str(), strerror(errno));
-        return reply(ntd, 500, "Error", 0);
-    }
-
-    int writ = 0;
-    int size = phi->content_length;
-    char buf[8192];
-
-    VERBOSE("put file %s size %d", file.c_str(), size);
-
-    // copy data
-    // NB: there is no reverse-sendfile
-    while( writ != size ){
-        int s = size - writ;
-        if( s > sizeof(buf) ) size = sizeof(buf);
-
-        r = read_to(ntd->fd, buf, s, TIMEOUT);
-        DEBUG("read %d -> %d", s, r);
-        if( r<1 ) break;
-        fwrite(buf, 1, r, f);
-
-        writ += r;
-    }
-    fclose(f);
-
-    // verify
-    string *hash = req.mutable_hash_sha1();
-    int vfysz  = file_size( tmp.c_str() );
-    file_hash( tmp.c_str(), buf, sizeof(buf) );
-
-    if( vfysz != size || hash->compare(buf) ){
-        VERBOSE("verify failed %s, %d %s != %d %s", tmp.c_str(), size, hash->c_str(), vfysz, buf);
-        unlink( tmp.c_str() );
-        return reply( ntd, 500, "Error", 0);
-    }
-
-    rename( tmp.c_str(), file.c_str() );
-#endif
-
     return reply(ntd, 200, "OK", hash->c_str() );
 }
 
@@ -284,7 +225,7 @@ scriblr_get(NTD *ntd){
     if( size == -1 )
         return reply(ntd, 404, "Not Found", 0);
 
-    char buf[8192];
+    char buf[64];
     file_hash( file.c_str(), buf, sizeof(buf) );
 
     int f = open( file.c_str(), O_RDONLY );

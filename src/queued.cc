@@ -22,6 +22,15 @@
 
 #define MINSTATUS	5
 
+
+int
+Queued::nrunning(void){
+    _lock.r_lock();
+    int n = _running.size();
+    _lock.r_unlock();
+    return n;
+}
+
 void *
 Queued::dequeue(void){
 

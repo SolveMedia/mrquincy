@@ -2,7 +2,7 @@
   Copyright (c) 2008 by Jeff Weisberg
   Author: Jeff Weisberg <jaw @ tcp4me.com>
   Created: 2008-Dec-28 12:17 (EST)
-  Function:
+  Function: the config file
 */
 
 #ifndef __mrquincy_config_h_
@@ -33,26 +33,27 @@ typedef list<NetAddr *>   NetAddr_List;
 
 class Config {
 public:
-    int		hw_cpus;
-    int		threads;
+    int			hw_cpus;
+    int			tcp_threads;
+    int			udp_threads;
 
-    int 	port_console;
-    int 	port_mrquincy;
-    int		enable_scriblr;
+    int 		port_console;
+    int 		port_mrquincy;
+    int			enable_scriblr;
 
-    int 	debuglevel;
-    char 	debugflags[256/8];
-    char 	traceflags[256/8];
+    int 		debuglevel;
+    char 		debugflags[256/8];
+    char 		traceflags[256/8];
 
-    string 	environment;
-    string	basedir;
+    string 		environment;
+    string		basedir;
 
     ACL_List		acls;
     NetAddr_List	seedpeers;
 
-    string	error_mailto;
-    string	error_mailfrom;
-    string	plan_prog;
+    string		error_mailto;
+    string		error_mailfrom;
+    string		plan_prog;
 
     int check_acl(const sockaddr *);
 protected:

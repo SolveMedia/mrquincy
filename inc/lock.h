@@ -11,6 +11,8 @@
 #include <defs.h>
 #include <pthread.h>
 
+// try = 0 => got the lock
+
 class Mutex {
 private:
     pthread_mutex_t _mutex;
@@ -57,6 +59,8 @@ public:
     void r_unlock(void);
     void w_lock(void);
     void w_unlock(void);
+    int r_trylock(void);
+    int w_trylock(void);
 
 private:
     DISALLOW_COPY(RWLock);

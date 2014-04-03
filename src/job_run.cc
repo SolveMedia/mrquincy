@@ -28,69 +28,28 @@ using std::ostringstream;
 
 
 Job::Job(){
-    _state          = JOB_STATE_QUEUED;
-    _created        = lr_now();
-    _want_abort     = 0;
-    _stepno         = 0;
-    _n_xfer_running = 0;
-    _n_task_running = 0;
-    _n_deleted      = 0;
-    _n_threads	    = 0;
-    _n_tasks_run    = 0;
-    _n_xfers_run    = 0;
-    _run_start      = 0;
-    _run_time       = 0;
-    _task_run_time  = 0;
-    _totalmapsize   = 0;
+    _state           = JOB_STATE_QUEUED;
+    _created         = lr_now();
+    _want_abort      = 0;
+    _stepno          = 0;
+    _n_xfer_running  = 0;
+    _n_task_running  = 0;
+    _n_deleted       = 0;
+    _n_threads       = 0;
+    _n_tasks_run     = 0;
+    _n_xfers_run     = 0;
+    _run_start       = lr_now(); // moved forward after planning
+    _run_time        = 0;
+    _task_run_time   = 0;
+    _totalmapsize    = 0;
+    _n_fails         = 0;
 
 }
 
 void
 Job::abort(void){
     _want_abort = 1;
-    VERBOSE("abort requested");
-}
-
-void
-Job::log_progress(bool rp){
-
-    _lock.r_lock();
-    const char *ph = (_stepno >= _plan.size()) ? "cleanup" : _plan[_stepno]->_phase.c_str();
-
-    int jt = lr_now() - _run_start;
-    float efficency = 0;
-    if( jt )
-        efficency = _task_run_time * 100.0 / (jt * _servers.size());
-
-    ostringstream b;
-
-    if( rp && !_n_task_running && !_n_xfer_running && !_pending.size() ){
-        // done - don't display all 0s
-        b << "status: phase finished;"
-          << " map "           << _totalmapsize / 1000000 << "MB"
-          << ", task "         << _n_tasks_run
-          << ", xfer "         << _n_xfers_run
-          << ", dele "         << _n_deleted
-          << "; effcy "        << efficency
-            ;
-    }else{
-        b << "status: phase "  << ph
-          << ", task "         << _n_task_running
-          << ", xfer "         << _n_xfer_running
-          << ", pend "         << _pending.size()
-          << "; effcy "        << efficency
-          << "; (ran: task "   << _n_tasks_run
-          << ", xfer "         << _n_xfers_run
-          << ", dele "         << _n_deleted
-          << ")";
-    }
-
-    if(rp)
-        report(b.str().c_str());
-    else
-        inform(b.str().c_str());
-
-    _lock.r_unlock();
+    DEBUG("abort requested");
 }
 
 void
@@ -105,7 +64,7 @@ Job::run(void){
         DEBUG("state %d", _state );
 
         while( _state == JOB_STATE_RUNNING && !_want_abort ){
-            try_to_do_something();
+            try_to_do_something(1);
             check_timeouts();
             log_progress(0);
             sleep(5);
@@ -113,8 +72,10 @@ Job::run(void){
     } while(0);
 
     cleanup();
+    _run_time = lr_now() - _run_start;
     log_progress(1);
-    report_finish();
+    report_final_stats();
+    notify_finish();	// tell end-user we are done
 
     DEBUG("done");
 }
@@ -124,22 +85,24 @@ ToDo::update(const string *status, int progress){
 
     _last_status = lr_now();
 
-    if( _state != JOB_TODO_STATE_RUNNING ) return 1;
+    if( _state != JOB_TODO_STATE_RUNNING ) return 0;
     _progress    = progress;
 
-    if( _status == *status ) return 1;
+    if( _status == *status ) return 0;
     _status      = *status;
 
     DEBUG("update %s -> %s", _xid.c_str(), status->c_str());
 
     if( !status->compare("FINISHED") ){
         finished();
+        return 1;
     }
     if( !status->compare("FAILED") ){
-        failed();
+        failed(0);
+        return 1;
     }
 
-    return 1;
+    return 0;
 }
 
 int
@@ -149,21 +112,34 @@ Job::update(const string *xid, const string *status, int progress){
 
     // find action + update it
     ToDo * t = find_todo_x(xid);
+    int done = 0;
+
     if( t ){
-        t->update(status, progress);
+        done = t->update(status, progress);
     }
     _lock.w_unlock();
 
-    try_to_do_something();
+    if( done )
+        try_to_do_something(0);
+
     return 1;
 }
 
 int
 Job::start_step_x(void){
 
-    // move tasks from plan -> pending
     Step *step = _plan[ _stepno ];
-    int ntask = step->_tasks.size();
+    int ntask  = step->_tasks.size();
+
+    // stats
+    step->_run_start = lr_now();
+
+    if( _stepno ){
+        Step * p = _plan[ _stepno - 1];
+        p->_run_time = lr_now() - p->_run_start;
+    }
+
+    // move tasks from plan -> pending
 
     for(int i=0; i<ntask; i++){
         _pending.push_back( step->_tasks[i] );
@@ -201,12 +177,27 @@ Job::next_step_x(void){
 }
 
 int
-Job::try_to_do_something(void){
+Job::try_to_do_something(bool try_harder){
+    bool leave = 0;
 
-    if( _state != JOB_STATE_RUNNING ) return 0;
-    if( _want_abort ) return 0;
+    // if running via update() don't bother waiting for the locks
 
-    _lock.w_lock();
+    if( try_harder ){
+        _lock.r_lock();
+    }else{
+        if( _lock.r_trylock() ) return 0;
+    }
+
+    if( _state != JOB_STATE_RUNNING ) leave = 1;
+    if( _want_abort ) leave = 1;
+    _lock.r_unlock();
+    if( leave ) return 0;
+
+    if( try_harder ){
+        _lock.w_lock();
+    }else{
+        if( _lock.w_trylock() ) return 0;
+    }
 
     // nothing running, nothing pending => next phase
     if( _running.empty() && _pending.empty() )
@@ -218,7 +209,11 @@ Job::try_to_do_something(void){
 
     // RSN - check load ave
 
-    _lock.w_lock();
+    if( try_harder ){
+        _lock.w_lock();
+    }else{
+        if( _lock.w_trylock() ) return 0;
+    }
 
     // can we start anything?
     maybe_start_something_x();
@@ -257,7 +252,6 @@ Job::check_timeouts(void){
 
     for(list<ToDo*>::iterator it=tlist.begin(); it != tlist.end(); it++){
         ToDo *t = *it;
-        DEBUG("last %s - %lld", t->_xid.c_str(), t->_last_status);
         if( t->_last_status + TODOTIMEOUT < now ) t->timedout();
     }
 

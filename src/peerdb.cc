@@ -54,12 +54,40 @@ peerdb_periodic(void *notused){
     }
 }
 
+static void
+format_dt(int sec, ostringstream &b){
+
+    int d = sec / 86400;
+    sec %= 86400;
+
+    int h = sec / 3600;
+    sec %= 3600;
+
+    int m = sec / 60;
+    sec %= 60;
+
+    char buf[64];
+
+    if( !d ){
+        snprintf(buf, sizeof(buf), "%02d:%02d:%02d", h,m,sec);
+    }else if( d < 14 ){
+        snprintf(buf, sizeof(buf), "%dd+%02dh", d,h);
+    }else{
+        snprintf(buf, sizeof(buf), "%ddays", d);
+    }
+
+    b << std::setw(16) << buf;
+}
+
+
 // report peers, status, + metrics - for diag
 int
 PeerDB::report(NTD *ntd){
 
     ostringstream out;
     _lock.r_lock();
+
+    out << "# name                      status    load      disk upd          uptime\n";
 
     for(list<Peer*>::const_iterator it=_allpeers.begin(); it != _allpeers.end(); it++){
         const Peer *p = *it;
@@ -68,7 +96,11 @@ PeerDB::report(NTD *ntd){
             << std::setw(4)  << std::right << p->_gstatus->status()
             << std::setw(8)  << std::right << p->_gstatus->sort_metric()
             << std::setw(10) << std::right << p->_gstatus->capacity_metric()
-            << "\n";
+            << std::setw(4)  << std::right << (lr_now() - p->_gstatus->lastup());
+
+        format_dt( lr_now() - p->_gstatus->boottime(), out );
+
+        out << "\n";
 
     }
     _lock.r_unlock();
@@ -292,10 +324,12 @@ PeerDB::_kill(Peer *p){
 static int
 _update_ok(ACPMRMStatus *g){
 
+    if( !g->IsInitialized() )                                 return 0; // corrupt
     if( ! myserver_id.compare( g->server_id() ) )             return 0; // don't want my own info
     if( config->environment.compare( g->environment() ) )     return 0; // same env?
     if( g->subsystem().compare("mrquincy") )                  return 0; // and subsystem?
-    if( g->timestamp() < lr_now() - KEEPDOWN - HYSTERESIS )   return 0; // we'd just toss it out
+    if( g->timestamp() < lr_now() - KEEPLOST  )   	      return 0; // we'd just toss it out
+    if( g->lastup()    < lr_now() - KEEPDOWN  )   	      return 0; // we'd just toss it out
 
     return 1;
 }
@@ -318,7 +352,9 @@ PeerDB::add_peer(ACPMRMStatus *g){
 
         DEBUG("update existing %s", id->c_str());
         // update existing entry
+        _lock.w_lock();
         p->update( g );
+        _lock.w_unlock();
         return;
     }
 

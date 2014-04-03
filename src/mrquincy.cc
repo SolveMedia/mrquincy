@@ -102,7 +102,7 @@ main(int argc, char **argv){
 
      if( prev_status && prev_status != (EXIT_NORMAL_RESTART<<8) ){
          // previous process restarted due to an error - send an email
-         PROBLEM("previous dancrd restarted due to an error (%d)", prev_status);
+         PROBLEM("previous " MYNAME "d restarted due to an error (%d)", prev_status);
      }
 
      // init subsystems
@@ -160,7 +160,7 @@ reload_config(void *file){
 //   main exits
 ///
 // normal winddown:
-//   puds janitor causes runmode transition windown=>exiting
+//   network_manage causes runmode transition windown=>exiting
 
 // runmode_manage handles shutting down in the cases
 // where the normal processes are hung
@@ -171,7 +171,7 @@ reload_config(void *file){
 
 
 #define TIME_LIMIT	60
-#define PUDS_LIMIT	1800
+#define WIND_LIMIT	300
 
 void*
 runmode_manage(void*){
@@ -188,7 +188,7 @@ runmode_manage(void*){
             break;
 
         case RUN_MODE_WINDDOWN:
-            if( !twind ) twind = nowt + PUDS_LIMIT;
+            if( !twind ) twind = nowt + WIND_LIMIT;
             if( twind < nowt ) _exit(runmode.final_exit_value());
             break;
 

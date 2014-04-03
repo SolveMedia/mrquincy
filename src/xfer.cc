@@ -26,7 +26,7 @@
 #include <sstream>
 using std::ostringstream;
 
-#define MAXXFER		10	// RSN - config
+#define MAXXFER		5	// RSN - config
 #define TIMEOUT		15
 
 class Xfer : public ACPMRMFileXfer {
@@ -167,7 +167,7 @@ do_xfer(void *x){
     for(int i=0; i<tries; i++){
         ok = try_xfer(g, i % g->location_size());
         if( ok ) break;
-        sleep(2);	// make the problem will clear
+        sleep(5);	// maybe the problem will clear
     }
 
     DEBUG("xfer done");
@@ -212,7 +212,7 @@ try_xfer(Xfer *g, int l){
     // connect
     int fd = tcp_connect(na, TIMEOUT);
     if( fd<0 ){
-        DEBUG("cannot connect to %s", location->c_str());
+        VERBOSE("xfer cannot connect to %s", location->c_str());
         return 0;
     }
 
@@ -220,7 +220,7 @@ try_xfer(Xfer *g, int l){
     // send request
     int s = write_request(&ntd, PHMT_SCRIB_GET, &req, 0, TIMEOUT);
     if( s<1 ){
-        DEBUG("write failed");
+        VERBOSE("xfer write failed");
         close(fd);
         return 0;
     }
@@ -228,7 +228,7 @@ try_xfer(Xfer *g, int l){
     // recv response
     s = read_proto(&ntd, 0, TIMEOUT);
     if( s<1 ){
-        DEBUG("read failed");
+        VERBOSE("xfer read failed");
         close(fd);
         return 0;
     }
@@ -238,7 +238,7 @@ try_xfer(Xfer *g, int l){
     DEBUG("l=%d, %s", phi->data_length, res.ShortDebugString().c_str());
 
     if( res.status_code() != 200 ){
-        DEBUG("request failed: %s", res.status_message().c_str());
+        VERBOSE("xfer request failed: %s", res.status_message().c_str());
         close(fd);
         return 0;
     }
@@ -254,7 +254,7 @@ try_xfer(Xfer *g, int l){
     close(fd);
 
     if( !s ){
-        DEBUG("save file failed");
+        VERBOSE("xfer save file failed");
         return 0;
     }
 

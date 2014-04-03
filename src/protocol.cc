@@ -137,6 +137,8 @@ make_request(NetAddr *addr, int reqno, google::protobuf::Message *g, int to){
     int s = 0;
 
     int fd = tcp_connect(addr, to);
+    if( fd < 0 ) return 0;
+
     ntd.fd = fd;
 
     // connect + send request
@@ -159,7 +161,7 @@ make_request(NetAddr *addr, int reqno, google::protobuf::Message *g, int to){
     DEBUG("recv l=%d, %s", phi->data_length, res.ShortDebugString().c_str());
 
     if( res.status_code() != 200 ){
-        VERBOSE("todo create request failed: %s", res.status_message().c_str());
+        VERBOSE("make request failed: %d -> %s", reqno, res.status_message().c_str());
         return 0;
     }
 
@@ -175,8 +177,8 @@ make_request(const char *addr, int reqno, google::protobuf::Message *g, int to){
 }
 
 // toss + forget, do not wait for a response
-static void
-_toss_request(int fd, sockaddr_in *sa, int reqno, google::protobuf::Message *g){
+void
+toss_request(int fd, const sockaddr_in *sa, int reqno, google::protobuf::Message *g){
     NTD ntd(0, 2048);
 
     string gout;
@@ -219,7 +221,7 @@ toss_request(int fd, NetAddr *na, int reqno, google::protobuf::Message *g){
     sa.sin_port        = htons(na->port);
     sa.sin_addr.s_addr = na->ipv4;
 
-    _toss_request(fd, &sa, reqno, g);
+    toss_request(fd, &sa, reqno, g);
 }
 
 void

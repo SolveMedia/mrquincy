@@ -26,8 +26,10 @@ sub compile_perl {
 
     my @job;
 
+    $comp->{confjs}   = encode_json( $comp->{config} );
+
     # compile + run init section
-    if( $comp->{runinit} ){
+    if( $comp->{runinit} && $prog->{init} ){
         my $init = compile_init( $comp, $prog );
         my $code = $init->{src};
         my $r = eval $code;
@@ -36,7 +38,6 @@ sub compile_perl {
     }
 
     $comp->{initjs} ||= encode_json({});
-    $comp->{confjs}   = encode_json( $comp->{config} );
 
     push @job, compile_map( $comp, $prog );
     if( $prog->{reduce} ){
@@ -52,6 +53,7 @@ sub compile_perl {
         syntax_check( $comp, $j->{phase}, $j->{src} );
     };
 
+    #print STDERR dumper(\@job); exit;
     return \@job;
 }
 
@@ -92,6 +94,18 @@ sub compile_init {
     my $sec = $prog->{init};
 
     my $code = boilerplate($comp, $prog, $sec);
+    my $uniq = "$$\_$^T\_" . int(rand(0xffff));
+    $code .= <<EOCONF;
+my \$R = do {
+    my \$conf = decode_json(<<'__END_OF_CONFIG_$uniq\__');
+$comp->{confjs}
+__END_OF_CONFIG_$uniq\__
+    AC::MrQuincy::Runtime->new_init( \$conf );
+};
+
+EOCONF
+    ;
+
     $code .= "sub program {\n$sec->{code}\n}\n";
     $code .= "program();\n";
 
@@ -132,7 +146,7 @@ EOCOMMON
 
     $code .= "{\n";
     $code .= $sec->{init} if $sec->{init};
-    $code .= "\nsub program {\n$sec->{code}\n}\n";
+    $code .= "\nsub program {\n$sec->{code}\nreturn;\n}\n";
     $code .= $loop;
     $code .= $sec->{cleanup} if $sec->{cleanup};
     $code .= "};\n";
@@ -141,6 +155,7 @@ EOCOMMON
         phase	=> $name,
         maxrun	=> config( 'maxrun',      $sec, $prog ),
         timeout => config( 'tasktimeout', $sec, $prog ),
+        width	=> config( 'taskwidth',   $sec, $prog ),
         src	=> $code,
     };
 }

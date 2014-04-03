@@ -27,6 +27,16 @@ sub new {
     }, $class;
 }
 
+# for running the init section
+sub new_init {
+    my $class = shift;
+    my $conf  = shift;
+
+    return bless {
+        conf	=> $conf,
+    }, $class;
+}
+
 # get config param
 sub config {
     my $me = shift;

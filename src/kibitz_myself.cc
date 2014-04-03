@@ -81,6 +81,7 @@ about_myself(ACPMRMStatus *g){
     g->set_status( (now > starttime + BOOTTIME) ? 200 : 102 );
     g->set_timestamp( now );
     g->set_lastup( now );
+    g->set_boottime( starttime );
 
     // RSN - load ave + jobs
     g->set_sort_metric( (int)(load[1] * 1000) );

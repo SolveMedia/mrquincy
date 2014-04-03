@@ -33,10 +33,11 @@ public:
     int			_isup;
     int             	_n_task_running;
     int             	_n_xfer_running;
+    int			_n_xfer_peering;
     int             	_n_dele_running;
     list<Delete*>	_to_delete;
 
-    Server(){ _isup = 1; _n_task_running = _n_xfer_running = _n_dele_running = 0; }
+    Server(){ _isup = 1; _n_task_running = _n_xfer_running = _n_xfer_peering = _n_dele_running = 0; }
     ~Server();
 };
 
@@ -65,9 +66,9 @@ protected:
     virtual void	abort(void) = 0;
     virtual void	cancel(void) = 0;
     virtual void	finished(void) = 0;
-    virtual void	failed(void) = 0;
+    virtual void	failed(bool) = 0;
     void		timedout(void);
-    void		retry_or_abort(void);
+    void		retry_or_abort(bool);
     int			start_check(void);
     void		start_common(void);
 
@@ -94,7 +95,7 @@ class TaskToDo : public ToDo {
     virtual void	abort(void);
     virtual void	cancel(void);
     virtual void	finished(void);
-    virtual void	failed(void);
+    virtual void	failed(bool);
 
 public:
     virtual int		start(void);
@@ -105,12 +106,13 @@ public:
 
 class XferToDo : public ToDo {
     ACPMRMFileXfer	_g;
+    int			_peeridx;
 
     virtual int		maybe_start(void);
     virtual void	abort(void);
     virtual void	cancel(void);
     virtual void	finished(void);
-    virtual void	failed(void);
+    virtual void	failed(bool);
 
 public:
     virtual int		start(void);
@@ -125,8 +127,14 @@ class Step {
 
     vector<TaskToDo*>	_tasks;
 
+    // stats
+    hrtime_t		_run_start;
+    int			_run_time;
+
+    Step(){ _run_start = 0; _run_time = 0; }
     ~Step();
     int			read_map_plan(Job *, FILE*);
+    void		report_final_stats(Job *);
 
     friend class Job;
 };
@@ -165,6 +173,7 @@ class Job : public ACPMRMJobCreate {
     int			_n_tasks_run;
     int			_n_xfers_run;
     int             	_n_deleted;
+    int			_n_fails;
 
     void		abort(void);
     int			update(const string*, const string*, int);
@@ -181,7 +190,7 @@ class Job : public ACPMRMJobCreate {
     int			next_step_x(void);
     int			cleanup(void);
     int			stop_tasks(void);
-    int			try_to_do_something(void);
+    int			try_to_do_something(bool);
     int			maybe_start_something_x(void);
     int			check_timeouts(void);
     ToDo*		find_todo_x(const string *) const;
@@ -194,15 +203,17 @@ class Job : public ACPMRMJobCreate {
     void		json(const char *, string *);
     void		add_delete_x(const string *, int);
     void		do_deletes(void);
+    void		report_final_stats(void);
+    float		efficency_x(void);
 
 public:
     Job();
     ~Job();
     void		run(void);
-    void		kvetch(const char *m, const char *a=0, const char *b=0, const char *c=0) const;		// errors
-    void		inform(const char *m, const char *a=0, const char *b=0, const char *c=0) const;		// diags
-    void		report(const char *m, const char *a=0, const char *b=0, const char *c=0) const;		// stats
-    void		report_finish(void) const;
+    void		kvetch(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// errors
+    void		inform(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// diags
+    void		report(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// stats
+    void		notify_finish(void) const;
     void		send_server_list(int);
 
     friend class QueuedJob;
@@ -215,15 +226,11 @@ public:
 
 #define MAXJOB			5		// maximum number of running jobs
 #define PLANTIMEOUT		(15 * 60)	// planner program max runtime
-#define REDUCEFACTOR		2		// reduce widthe factor
 
 #define TODOSTARTMAX		20		// maximum actions to start at a time
 #define TODOTIMEOUT		30
 #define TODOMAXFAIL		3
-#define TODORETRYDELAY		10
 #define JOBMAXTHREAD		5
-#define SERVERTASKMAX		10
-#define SERVERXFERMAX		20
 
 #endif // __mrquincy_job_h_
 

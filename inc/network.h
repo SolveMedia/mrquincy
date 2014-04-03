@@ -10,6 +10,9 @@
 
 #include "std_reply.pb.h"
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include <string>
 #include <stdint.h>
 
@@ -78,6 +81,7 @@ public:
     int			out_size;
     char                *gpbuf_in;
     char                *gpbuf_out;
+    struct sockaddr_in  peer;
     // ...
 
     NTD(int i, int o){ _alloc(i,o); }
@@ -129,6 +133,7 @@ extern int write_reply(NTD *, google::protobuf::Message *g, int contlen, int to)
 extern int read_proto(NTD *, int, int);
 extern void toss_request(int, NetAddr*,    int, google::protobuf::Message *);
 extern void toss_request(int, const char*, int, google::protobuf::Message *);
+extern void toss_request(int, const sockaddr_in*, int, google::protobuf::Message *);
 extern int  make_request(NetAddr *, int, google::protobuf::Message *, int);
 extern int  make_request(const char *, int, google::protobuf::Message *, int);
 

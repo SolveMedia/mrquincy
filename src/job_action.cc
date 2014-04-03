@@ -23,7 +23,14 @@
 #include "mrmagoo.pb.h"
 #include "std_reply.pb.h"
 
-#define TIMEOUT			30
+#define IO_TIMEOUT		30
+
+#define XFERMAX			48
+#define TODORETRYDELAY		15
+#define TODORETRYQUICK	 	5
+#define SERVERTASKMAX		10
+#define SERVERXFERMAX		20
+
 
 void
 Job::derunning_x(ToDo *t){
@@ -37,7 +44,7 @@ Job::enrunning_x(ToDo *t){
 }
 
 void
-ToDo::retry_or_abort(void){
+ToDo::retry_or_abort(bool did_timeout){
 
     if( ++_tries >= TODOMAXFAIL ){
         _state = JOB_TODO_STATE_FINISHED;
@@ -46,29 +53,34 @@ ToDo::retry_or_abort(void){
 
     // retry
     _state = JOB_TODO_STATE_PENDING;
-    _delay_until = lr_now() + TODORETRYDELAY;
+    int delay = (did_timeout ? TODORETRYDELAY * _tries : TODORETRYQUICK);
+    _delay_until = lr_now() + delay/2 + random_n( delay/2 ) + random_n( delay/2 );
+
     _job->_pending.push_back(this);
 }
 
 void
-TaskToDo::failed(void){
+TaskToDo::failed(bool did_timeout){
 
     _job->kvetch("task %s failed", _xid.c_str());
     _job->derunning_x(this);
     _job->_servers[ _serveridx ]->_n_task_running --;
     _job->_n_task_running --;
+    _job->_n_fails ++;
 
-    retry_or_abort();
+    retry_or_abort(did_timeout);
 }
 void
-XferToDo::failed(void){
+XferToDo::failed(bool did_timeout){
 
-    _job->kvetch("xfer %s failed", _xid.c_str());
+    _job->kvetch("xfer %s failed file %s host %s - %s", _xid.c_str(), _g.filename().c_str(), _job->_servers[_serveridx]->name.c_str(), _g.location(0).c_str());
     _job->derunning_x(this);
     _job->_servers[ _serveridx ]->_n_xfer_running --;
+    _job->_servers[ _peeridx   ]->_n_xfer_peering --;
     _job->_n_xfer_running --;
+    _job->_n_fails ++;
 
-    retry_or_abort();
+    retry_or_abort(did_timeout);
 }
 
 void
@@ -76,7 +88,7 @@ ToDo::timedout(void){
 
     _job->kvetch("task %s timed out", _xid.c_str());
     abort();
-    failed();
+    failed(1);
 }
 
 static void *
@@ -133,10 +145,13 @@ XferToDo::maybe_start(void){
 
     // too much running?
     if( _job->_servers[ _serveridx ]->_n_xfer_running >= SERVERXFERMAX ) return 0;
+    if( _job->_servers[ _peeridx   ]->_n_xfer_peering >= SERVERXFERMAX ) return 0;
+    if( _job->_n_xfer_running >= XFERMAX ) return 0;
     if( ! start_check() ) return 0;
 
     _job->inform("starting xfer %s - %s : %s", _xid.c_str(), _g.filename().c_str(), _job->_servers[ _serveridx ]->name.c_str());
     _job->_servers[ _serveridx ]->_n_xfer_running ++;
+    _job->_servers[ _peeridx   ]->_n_xfer_peering ++;
     _job->_n_xfer_running ++;
     _job->_n_xfers_run ++;
     start_common();
@@ -151,12 +166,13 @@ Job::thread_done(void){
     _lock.w_lock();
     _n_threads--;
     _lock.w_unlock();
+    try_to_do_something(1);
 }
 
 int
 TaskToDo::start(void){
 
-    if( ! make_request( _job->_servers[_serveridx], PHMT_MR_TASKCREATE, &_g, TIMEOUT ) ){
+    if( ! make_request( _job->_servers[_serveridx], PHMT_MR_TASKCREATE, &_g, IO_TIMEOUT ) ){
         string status = "FAILED";
         _job->update( &_xid, &status, 0 );
     }
@@ -167,7 +183,7 @@ TaskToDo::start(void){
 int
 XferToDo::start(void){
 
-    if( ! make_request( _job->_servers[_serveridx], PHMT_MR_FILEXFER, &_g, TIMEOUT ) ){
+    if( ! make_request( _job->_servers[_serveridx], PHMT_MR_FILEXFER, &_g, IO_TIMEOUT ) ){
         string status = "FAILED";
         _job->update( &_xid, &status, 0 );
     }
@@ -206,7 +222,7 @@ TaskToDo::cancel(void){
     req.set_jobid( _job->jobid() );
     req.set_taskid( _xid );
 
-    make_request( _job->_servers[_serveridx], PHMT_MR_TASKABORT, &req, TIMEOUT );
+    make_request( _job->_servers[_serveridx], PHMT_MR_TASKABORT, &req, IO_TIMEOUT );
 }
 
 void
@@ -242,6 +258,7 @@ XferToDo::finished(void){
     _job->derunning_x(this);
     _state = JOB_TODO_STATE_FINISHED;
     _job->_servers[ _serveridx ]->_n_xfer_running --;
+    _job->_servers[ _peeridx   ]->_n_xfer_peering --;
     _job->_n_xfer_running --;
 
     delete this;
@@ -249,9 +266,10 @@ XferToDo::finished(void){
 
 XferToDo::XferToDo(Job *j, const string *name, int src, int dst){
 
+    unique( &_xid );
     _job         = j;
     _serveridx   = dst;
-    unique( &_xid );
+    _peeridx     = src;
     _state       = JOB_TODO_STATE_PENDING;
     _tries       = 0;
     _delay_until = 0;

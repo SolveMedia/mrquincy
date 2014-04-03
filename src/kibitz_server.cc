@@ -15,6 +15,7 @@
 #include "hrtime.h"
 #include "peers.h"
 
+#include <stdio.h>
 #include <strings.h>
 
 #include "std_ipport.pb.h"
@@ -28,7 +29,6 @@
 int
 mr_status(struct NTD *ntd){
     protocol_header *phi = (protocol_header*) ntd->gpbuf_in;
-    protocol_header *pho = (protocol_header*) ntd->gpbuf_out;
     ACPMRMStatusRequest req;
     ACPMRMStatusReply   res;
 
@@ -55,6 +55,11 @@ mr_status(struct NTD *ntd){
     peerdb->reply_peers( &res );
     ACPMRMStatus *s = res.add_status();
     about_myself(s);
+
+    if( !res.IsInitialized() ){
+        BUG("incomplete status message: %s", res.InitializationErrorString().c_str() );
+        return 0;
+    }
 
     // serialize + reply
     write_reply(ntd, &res, 0, TIMEOUT);

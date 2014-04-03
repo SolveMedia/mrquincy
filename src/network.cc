@@ -43,6 +43,8 @@
 
 #define READ_TIMEOUT	30
 #define WRITE_TIMEOUT	30
+#define LISTEN		128
+
 
 static int handle_unknown(NTD*);
 static int handle_status(NTD*);
@@ -68,6 +70,9 @@ extern int handle_mrdelete(NTD*);
 extern void json_task(string *);
 extern void json_xfer(string *);
 extern void json_job(string *);
+extern int  job_nrunning(void), task_nrunning(void);
+extern void job_shutdown(void), task_shutdown(void);
+
 
 void hexdump(const char *, const uchar *, int);
 
@@ -159,17 +164,10 @@ cvt_header_to_network(protocol_header *ph){
 static void
 sigsegv(int sig){
     int i;
-    pthread_t self = pthread_self();
+    // pthread_t self = pthread_self();
 
     DEBUG("caught segv");
 
-    // attempt to abort the thread and continue
-
-    // if there is a lock being held, we are f***ed.
-    // if we winddown+restart, we could end up with no running dancrs (aka f***ed)
-
-    // put the system into a fast windown+restart
-    // if we are not hung, puds::janitor will cancel the shutdown
 
     runmode.errored();
 
@@ -506,6 +504,9 @@ network_tcp_read_req(void* xfd){
     ntd.fd = fd;
     ntd.is_tcp = 1;
 
+    socklen_t sal = sizeof(ntd.peer);
+    getpeername(fd, (sockaddr*)&ntd.peer, &sal);
+
     int r = read_proto(&ntd, 1, READ_TIMEOUT);
     if( r ){
         int rl = network_process(&ntd);
@@ -546,7 +547,10 @@ network_tcp4(void *notused){
 
         init_tcp(nfd);
 
-        start_thread(network_tcp_read_req, (void*)nfd);
+        // QQQ - new thread per connection or thread pool?
+        // start_thread(network_tcp_read_req, (void*)nfd);
+        network_tcp_read_req( (void*)nfd);
+
     }
 
     close(tcp4_fd);
@@ -556,8 +560,7 @@ network_tcp4(void *notused){
 static void *
 network_udp4(void *notused){
     NTD ntd;
-    struct sockaddr_in sa;
-    socklen_t l = sizeof(sa);
+    socklen_t l = sizeof(struct sockaddr_in);
     protocol_header *ph = (protocol_header*) ntd.gpbuf_in;
 
     ntd.fd = udp4_fd;
@@ -566,14 +569,16 @@ network_udp4(void *notused){
 	if( runmode.mode() == RUN_MODE_EXITING ) break;
 
         ntd.have_data = 0;
-        int i = recvfrom(udp4_fd, ntd.gpbuf_in, ntd.in_size, 0, (sockaddr*)&sa, &l);
+        int i = recvfrom(udp4_fd, ntd.gpbuf_in, ntd.in_size, 0, (sockaddr*)&ntd.peer, &l);
 
-	if( !config->check_acl( (sockaddr*)&sa ) ){
-	    VERBOSE("network connection refused from %s", inet_ntoa(sa.sin_addr) );
+        if( i < 0 ) continue;
+
+	if( !config->check_acl( (sockaddr*)&ntd.peer ) ){
+	    VERBOSE("network connection refused from %s", inet_ntoa(ntd.peer.sin_addr) );
 	    continue;
 	}
 
-	DEBUG("new udp from %s", inet_ntoa(sa.sin_addr) );
+	DEBUG("new udp from %s", inet_ntoa(ntd.peer.sin_addr) );
 
         // hexdump("recvd ", (uchar*)ntd.gpbuf_in, i);
 
@@ -584,7 +589,7 @@ network_udp4(void *notused){
         }
 
         int rl = network_process(&ntd);
-        if( rl ) sendto(udp4_fd, ntd.gpbuf_out, rl, 0, (sockaddr*)&sa, sizeof(sa));
+        if( rl ) sendto(udp4_fd, ntd.gpbuf_out, rl, 0, (sockaddr*)&ntd.peer, sizeof(ntd.peer));
     }
 
     close(udp4_fd);
@@ -678,7 +683,7 @@ network_init(void){
     if( i == -1 ){
 	FATAL("cannot bind to tcp4 port");
     }
-    listen(tcp4_fd, 10);
+    listen(tcp4_fd, LISTEN);
 
     udp4_fd = socket(PF_INET, SOCK_DGRAM, 0);
     if( udp4_fd == -1 ){
@@ -712,28 +717,48 @@ network_init(void){
 
     VERBOSE("starting network on tcp/%d as id %s (%s)", myport, myserver_id.c_str(), config->environment.c_str());
 
-    for(i=0; i<config->threads; i++){
+    for(i=0; i<config->tcp_threads; i++){
         start_thread(network_tcp4, 0);
+    }
+    for(i=0; i<config->udp_threads; i++){
         start_thread(network_udp4, 0);
-        // ...
     }
 }
 
 void
 network_manage(void){
-    int nbusy, i, nt;
     time_t prevt = lr_now(), nowt;
-    long long preq = 0;
 
     while(1){
         nowt = lr_now();
 
         switch(runmode.mode()){
+        case RUN_MODE_WINDDOWN:
+            // are we done?
+            if( job_nrunning() == 0 && task_nrunning() == 0 ){
+                runmode.wounddown();
+                VERBOSE("windown complete - exiting");
+                break;
+            }
+
+            // try to abort anything running
+            if( nowt - prevt > 10 ){
+                job_shutdown();
+                task_shutdown();
+                prevt = nowt;
+            }
+            break;
+
         case RUN_MODE_EXITING:
 
 	    if( tcp4_fd || udp4_fd || tcp6_fd || udp6_fd ){
 		// tell network_accept threads to finish
 		DEBUG("shutting network down");
+                if( tcp4_fd ) close(tcp4_fd);
+                if( tcp6_fd ) close(tcp6_fd);
+                if( udp4_fd ) close(udp4_fd);
+                if( udp6_fd ) close(udp6_fd);
+
 	    }else{
 		DEBUG("network finished");
 		return;
@@ -848,7 +873,8 @@ handle_hbreq(NTD* ntd){
     g.set_environment( config->environment.c_str() );
     g.set_timestamp( lr_now() );
     g.set_port( myport );
-    g.set_server_id( myserver_id );
+    string compat = "mrq/" + myserver_id;	// XXX - temporary compat
+    g.set_server_id( compat );
     g.set_process_id( getpid() );
 
     // determine disk space

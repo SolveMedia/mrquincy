@@ -41,7 +41,7 @@ using std::ostringstream;
 #define TIMEOUT		15
 #define MAXTRIES	3	// try running task up to this many times
 #define TASKMAXRUN	7200	// RSN - config, task conf
-#define TASKTIMEOUT	60	// ''
+#define TASKTIMEOUT	300	// ''
 #define EUBUFSIZE	8192
 
 
@@ -55,6 +55,7 @@ public:
     Task() { _pid = 0; _status = "PENDING"; _progress = 0; _created = lr_now(); }
 };
 
+#define static /* XXX */
 
 extern void install_handler(int, void(*)(int));
 extern int  create_pipeline(ACPMRMTaskCreate *, int*);
@@ -73,6 +74,11 @@ task_init(void){
     start_thread(task_periodic, 0);
 }
 
+void
+task_shutdown(void){
+    taskq.shutdown();
+}
+
 static void *
 task_periodic(void *notused){
 
@@ -81,6 +87,11 @@ task_periodic(void *notused){
         taskq.start_more(MAXTASK);
         sleep(5);
     }
+}
+
+int
+task_nrunning(void){
+    return taskq.nrunning();
 }
 
 // handle task request from network
@@ -127,6 +138,23 @@ handle_taskabort(NTD *ntd){
     taskq.abort(&req.taskid());
 
     return reply_ok(ntd);
+}
+
+// system is shutting down - kill running tasks, drain the queue
+void
+QueuedTask::shutdown(void){
+
+    _lock.w_lock();
+
+    _queue.clear();
+
+    for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
+        void *g = *it;
+        Task *t = (Task*)g;
+        VERBOSE("aborting task %s", t->taskid().c_str());
+        if( t->_pid ) kill( t->_pid, 3 );
+    }
+    _lock.w_unlock();
 }
 
 void
@@ -255,6 +283,7 @@ do_task(void *x){
     for(int i=0; i<tries; i++){
         ok = try_task(g);
         if( ok ) break;
+        sleep(5);
     }
 
     if( ok )
@@ -373,6 +402,8 @@ try_task(Task *g){
 
     DEBUG("child pid %d exited %d", pid, exitval);
 
+    if( exitval ) VERBOSE("task child exited %d", exitval);
+
     return (exitval==0) ? 1 : 0;
 
 }
@@ -382,7 +413,7 @@ try_task(Task *g){
 static void
 run_task_sig(int sig){
     // 0 => all processes in my process group
-    DEBUG("signal %d: abort", sig);
+    VERBOSE("signal %d: abort", sig);
     kill(0, 9);
     _exit(1);
 }
@@ -462,6 +493,7 @@ run_task_prog(int parent_fd, Task *g){
     DEBUG("running task io loop");
     int tasktimeout = g->timeout();
     if( !tasktimeout ) tasktimeout = TASKTIMEOUT;
+    DEBUG("task timeout %d", tasktimeout);
 
     while(1){
         // wait for prog to send data or timeout
@@ -473,8 +505,9 @@ run_task_prog(int parent_fd, Task *g){
         }
 
         int r = poll(pf, 3, tasktimeout * 1000);
+        if( r == -1 && (errno == EINTR || errno == EAGAIN) ) continue;
         if( r <= 0 ){
-            VERBOSE("timeout");
+            VERBOSE("task timeout (%d)", int(lr_now() - t0));
             pl.abort();
             _exit(1);
         }
@@ -518,6 +551,8 @@ run_task_prog(int parent_fd, Task *g){
 
     hrtime_t t1 = lr_now();
     DEBUG("run time: %d", t1 - t0);
+
+    if( exitval ) VERBOSE("task pipeline exited %d", exitval);
 
     _exit( exitval ? -1 : 0 );
 }

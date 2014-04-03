@@ -7,6 +7,7 @@
 # Function: mrmagoo job submit client
 
 my %opt;
+my %conf;
 use Getopt::Long qw(:config no_ignore_case);
 use Pod::Usage;
 BEGIN {
@@ -16,17 +17,20 @@ BEGIN {
            "debug|d",
            "devlibs|D",
            "console",
+           "conf=s%",	\%conf, 	# -conf foo=bar
            "dryrun|n",
-           "range=i",
-           "start=s",
-           "end=s",
-           "maps=i",	# NYI
-           "reduces=i",
-           "mrmode=s",
-           "datamode=s",
-           "system=s",
+           "range=i",			# days
+           "start=s",			# iso
+           "end=s",			# iso
+           "mrmode=s", 		# \
+           "datamode=s",   	#  > mixed with job config, passed straight through to planner
+           "system=s",		# /
            "master=s",
+           "maxrun=i",		# \  mixed with job config + section attrs
+           "tasktimeout=i",	#  > merged by Compile/, and
+           "taskwidth=i",	# /  eventually finding their way to task.cc
            "report",
+           "progress",
            "help|h",
            "man",
           ) || exit;
@@ -49,10 +53,18 @@ $opt{range} ||= 1;	# 1 day
 conf_time( \%opt, 'end',    int($^T / 86400) * 86400);		# today @ T00:00Z
 conf_time( \%opt, 'start',  $opt{end} - $opt{range} * 86400 );
 
+# merge -conf params
+# eg. maxrun, tasktimeout, taskwidth - to control the job, or other - available to job
+if( keys %conf ){
+    for my $k (keys %conf){
+        $opt{$k} = $conf{$k};
+    }
+}
+
 # parse the job
 my $mrm = AC::MrQuincy::Client->new( file => $ARGV[0] );
 $mrm->set_debug(1) if $opt{debug};
-$mrm->master( $opt{master} ) if $opt{master};
+$mrm->set_master(  $opt{master} )  if $opt{master};
 
 # job compiler config
 my %conf = (
@@ -63,8 +75,9 @@ my %conf = (
 
 # console config
 my %concf;
-$concf{debug}  = sub{ print STDERR "@_\n" } if $opt{debug};
-$concf{report} = sub{ print STDERR "@_\n" } if $opt{report};
+$concf{debug}    = sub{ print STDERR "@_\n" } if $opt{debug};
+$concf{report}   = sub{ print STDERR "@_\n" } if $opt{report};
+$concf{progress} = sub{ print STDERR "@_\n" } if $opt{progress};
 
 $mrm->compile( \%opt, %conf );
 
@@ -90,7 +103,7 @@ exit;
 ################################################################
 
 sub seedlist {
-    [ map { "$_->{addr}:$_->{port}" } get_ac_servers( ($opt{mrmode} || 'prod'), 'mrgamoo' ) ];
+    [ map { "$_->{addr}:$_->{port}" } get_ac_servers( ($opt{mrmode} || 'prod'), 'mrquincy' ) ];
 }
 
 sub conf_time {
@@ -118,6 +131,7 @@ mrmagoo [options] jobfile
     --verbose   -v
     --debug     -d
     --report	      display some additional job stats
+    --progress	      display progrees as the job runs
     --check           Check syntax of jobfile and return
 
     --devlibs   -D    Use development libs (Default: false)
@@ -128,14 +142,13 @@ mrmagoo [options] jobfile
     --start           ISO Start of report (Default: --end - --range)
     --end             ISO End of report   (Default: Today at 00:00:00)
 
-    --maps            # NOT IMPLEMENTED
-    --reduces         number of processes per reduce step to use
-
     --mrmode          Job cluster to run on (prod|dev)         (Default: prod)
     --datamode        Dataset to work on (prod|dev)            (Default: prod)
     --system          Subsystem to report on (dancr|banner|'') (Default: dancr)
 
     --master          Force master job server (use absolute hostname) (Default: automatically selected)
+
+    --conf foo=bar    Specify config parameters to be passed to job
 
     --help      -h    usage details
     --man             full documentation and examples

@@ -61,7 +61,8 @@ static int add_acl(Config *, string *);
 static int add_peer(Config *, string *);
 static int ignore_conf(Config *cf, string *s) { return 0; }
 
-SET_INT_VAL(threads, 0);
+SET_INT_VAL(tcp_threads, 0);
+SET_INT_VAL(udp_threads, 0);
 SET_INT_VAL(port_mrquincy, 0);
 SET_INT_VAL(port_console, 0);
 SET_INT_VAL(debuglevel, 0);
@@ -81,7 +82,8 @@ static struct {
 } confmap[] = {
     { "cpus",		set_hw_cpus	   },
     { "port",           set_port_mrquincy  },
-    { "threads",	set_threads	   },
+    { "tcp_threads",	set_tcp_threads	   },
+    { "udp_threads",	set_udp_threads	   },
     { "console",        set_port_console   },
     { "environment",    set_environment    },
     { "basedir",	set_basedir        },
@@ -202,7 +204,7 @@ read_config(const char *filename){
 
     fclose(f);
     Config *old = config;
-    ATOMIC_SET64( config, (uint64_t)cf);
+    ATOMIC_SETPTR( config, cf);
 
     if( old ){
         sleep(2);
@@ -358,7 +360,8 @@ Config::Config(){
     port_console   = PORT_CONSOLE;
     debuglevel     = 0;
     enable_scriblr = 1;
-    threads	   = 2;
+    udp_threads	   = 2;
+    tcp_threads	   = 4;
     environment.assign("unknown");
 
     memset(debugflags, 0, sizeof(debugflags));

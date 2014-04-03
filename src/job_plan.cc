@@ -35,6 +35,8 @@
 using std::ostringstream;
 
 
+#define REDUCEFACTOR		2		// reduce width factor
+#define REDUCEDECAY		.5
 #define WRITE_TIMEOUT		15
 #define FILESPEC		"mrtmp/j_%s/out_%03d_%03d_%03d"
 //                                    jobid  stepno srctask dsttask
@@ -77,14 +79,17 @@ Job::plan(void){
     int maps = _plan[0]->_tasks.size();
 
     ostringstream b;
-    b << "job: " << jobid()
-      << " plan: bytes: " << (_totalmapsize / 1000000LL)
-      << " MB, maps: " << maps
-      << ", reduces: " << (_plan.size() - 1) << "x" << reduce_width();
+    b << "plan: input size: " << (_totalmapsize / 1000000LL)
+      << " MB(gz), maps: "    << maps
+      << ", reduces: ";
+
+    for(int i=1; i<_plan.size(); i++){
+        if( i > 1 ) b << "+";
+        b << _plan[i]->_tasks.size();
+    }
 
     const char *bc = b.str().c_str();
-    VERBOSE("%s", bc);
-    inform(bc);
+    report(bc);
 
     _lock.r_unlock();
 
@@ -399,15 +404,17 @@ Job::plan_reduce(void){
     int nserv = _servers.size();
     int nstep = section_size();
 
-    if( !has_reduce_width() || !reduce_width() ){
-        set_reduce_width( nserv * REDUCEFACTOR );
-    }
-
-    int width = reduce_width();
-
     for(int i=1; i<nstep; i++){
         Step *step = _plan[i];
-        int ntask  = step->_phase.compare("final") ? width : 1;
+        int prevw  = _plan[i-1]->_tasks.size();
+        int ntask;
+
+        if( i == nstep - 1 )
+            ntask = 1;	// final
+        else if( section(i).has_width() )
+            ntask = section(i).width();
+        else
+            ntask = nserv * REDUCEFACTOR; // QQQ - MAX( nserv * REDUCEFACTOR, int(prevw * REDUCEDECAY) );
 
         DEBUG("%s ntask %d", step->_phase.c_str(), ntask);
 
@@ -429,7 +436,6 @@ Job::plan_files(void){
 
     _lock.w_lock();
     int nstep  = section_size();
-    int width  = reduce_width();
     int nserv  = _servers.size();
 
     for(int i=0; i<nstep; i++){
@@ -437,11 +443,13 @@ Job::plan_files(void){
         int ntask  = step->_tasks.size();
         int infile, outfile;
 
-        if( !step->_phase.compare("final") ){
+        if( i == (nstep-1) ){
+            // last step
             outfile = 1;
             infile  = _plan[i-1]->_tasks.size();
         }
-        else if( !step->_phase.compare("map") ){
+        else if( i == 0 ){
+            // first (map) step
             outfile = (nstep > 1) ? _plan[i+1]->_tasks.size() : 1;
             infile  = 0;	// already figured
         }else{

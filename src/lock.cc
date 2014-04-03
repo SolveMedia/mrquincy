@@ -134,3 +134,13 @@ RWLock::w_unlock(void){
     pthread_rwlock_unlock( &_rwlock );
 }
 
+int
+RWLock::r_trylock(void){
+    return pthread_rwlock_tryrdlock( &_rwlock );
+}
+
+int
+RWLock::w_trylock(void){
+    return pthread_rwlock_trywrlock( &_rwlock );
+}
+

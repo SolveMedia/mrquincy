@@ -6,6 +6,7 @@
 
 <%doc>
     map reduce example
+    the file format is modeled after the format of an HTML::Mason component
 </%doc>
 %################################################################
 %# provide values for configurable parameters
@@ -36,6 +37,7 @@
 %# override various parameters
     maxrun      => 300
 </%attr>
+    # the map block is passed 1 arg:
     my $data = shift;   # one record from the input
 
     # return a key + a value
@@ -43,7 +45,8 @@
 </%map>
 %################################################################
 <%reduce>
-    my $key = shift;
+    # reduce blocks are passed 2 args:
+    my $key = shift;    # the key
     my $itr = shift;    # an iterator object
 
     # count
@@ -64,7 +67,9 @@
     # init sub-block runs at start of final block
     my $report;
 </%init>
-    my($key, $data) = @_;
+    # the final block is passed 2 args:
+    my $key  = shift;   # the key
+    my $data = shift;   # the value
 
     $report .= "key: $key, value: $data\n";
 

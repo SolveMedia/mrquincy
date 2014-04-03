@@ -20,6 +20,7 @@ message ACPMRMStatus {
         required string         server_id       = 13;
         optional string         path            = 15;   // for debugging
         optional int32          capacity_metric = 16;
+        optional int64          boottime        = 17;
 };
 
 message ACPMRMStatusRequest {
@@ -37,6 +38,7 @@ message ACPMRMJobPhase {
         required bytes          src             = 2;
         optional int32          maxrun          = 3;
         optional int32          timeout         = 4;
+        optional int32          width           = 5;
 }
 
 
@@ -46,7 +48,6 @@ message ACPMRMJobCreate {
         optional string         console         = 5;            // ipaddr:port
         optional string         traceinfo       = 6;
         repeated ACPMRMJobPhase section         = 7;
-        optional int32          reduce_width    = 8;
 }
 
 message ACPMRMJobAbort {

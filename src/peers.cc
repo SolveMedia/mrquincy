@@ -75,6 +75,8 @@ Peer::update(const ACPMRMStatus *g){
 void
 Peer::status_reply(ACPMRMStatus *g) const{
 
+    if( !_gstatus->IsInitialized() ) return;
+
     *g = *_gstatus;
     g->set_via( myserver_id );
 
