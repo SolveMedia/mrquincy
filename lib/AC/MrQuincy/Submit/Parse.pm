@@ -113,6 +113,8 @@ sub _parse {
 sub _lineno_info {
     my $me  = shift;
 
+    return '' if $me->{israw};
+
     # should have the number of the _next_ line
     return sprintf "#line %d $me->{file}\n", $me->{_lineno} + 1;
 }

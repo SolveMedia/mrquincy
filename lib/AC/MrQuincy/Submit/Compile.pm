@@ -8,6 +8,7 @@
 
 package AC::MrQuincy::Submit::Compile;
 use AC::MrQuincy::Submit::Compile::Perl;
+use AC::MrQuincy::Submit::Compile::Raw;
 use AC::MrQuincy::Submit::Compile::Ruby;
 use AC::MrQuincy::Submit::Compile::Python;
 use JSON;
@@ -30,6 +31,9 @@ sub compile {
 
     if( $me->{lang} eq 'perl' ){
         return compile_perl( $me, $parse );
+    }
+    if( $me->{lang} eq 'raw' ){
+        return compile_raw( $me, $parse );
     }
     if( $me->{lang} eq 'ruby' ){
         return compile_ruby( $me, $parse );
@@ -60,6 +64,23 @@ sub options {
     my $me = shift;
 
     return encode_json( $me->{config} || {} );
+}
+
+
+sub config {
+    my $me    = shift;
+    my $param = shift;
+    my $sec   = shift;
+
+    my $prog = $me->{content};
+
+    my $v = $sec->{attr}{$param};
+    return $v if defined $v;
+
+    $v = $prog->{config}{$param};
+    return $v if defined $v;
+
+    return undef;
 }
 
 1;

@@ -49,11 +49,11 @@ sub compile_perl {
         push @job, compile_final( $comp, $prog );
     }
 
+    # print STDERR dumper(\@job); exit;
     for my $j (@job){
         syntax_check( $comp, $j->{phase}, $j->{src} );
     };
 
-    #print STDERR dumper(\@job); exit;
     return \@job;
 }
 
@@ -111,8 +111,8 @@ EOCONF
 
     return {
         phase	=> 'init',
-        maxrun	=> config( 'maxrun',      $sec, $prog ),
-        timeout => config( 'tasktimeout', $sec, $prog ),
+        maxrun	=> $comp->config( 'maxrun',      $sec ),
+        timeout => $comp->config( 'tasktimeout', $sec ),
         src	=> $code,
     };
 }
@@ -153,9 +153,9 @@ EOCOMMON
 
     return {
         phase	=> $name,
-        maxrun	=> config( 'maxrun',      $sec, $prog ),
-        timeout => config( 'tasktimeout', $sec, $prog ),
-        width	=> config( 'taskwidth',   $sec, $prog ),
+        maxrun	=> $comp->config( 'maxrun',      $sec ),
+        timeout => $comp->config( 'tasktimeout', $sec ),
+        width	=> $comp->config( 'taskwidth',   $sec ),
         src	=> $code,
     };
 }
@@ -166,13 +166,16 @@ sub compile_map {
 
     my $sec = $prog->{map};
 
-    # RSN - override input + filter
-    my $loop = <<'EOW';
+    my $loop = "\nwhile(<>){\n";
 
-while(<>){
-    my $d = parse_dancr_log( $_ );
-    next unless $R->filter(  $d );
+    if( $comp->config('lineinput', $sec) ){
+        $loop .= 'my $d = $_;' . "\n";
+    }else{
+        $loop .= "\t" . 'my $d = parse_dancr_log( $_ );' . "\n";
+        $loop .= "\t" . 'next unless $R->filter(  $d );' . "\n";
+    }
 
+    $loop .= <<'EOW';
     my($key, $data) = program( $d );
     $R->output( $key, $data ) if defined $key;
 }
@@ -228,19 +231,6 @@ EOW
 
 }
 
-sub config {
-    my $param = shift;
-    my $sec   = shift;
-    my $prog  = shift;
-
-    my $v = $sec->{attr}{$param};
-    return $v if defined $v;
-
-    $v = $prog->{config}{$param};
-    return $v if defined $v;
-
-    return undef;
-}
 
 sub syntax_check {
     my $comp = shift;

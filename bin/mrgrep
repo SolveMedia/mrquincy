@@ -1,0 +1,189 @@
+#!/usr/local/bin/perl
+# -*- perl -*-
+
+# Copyright (c) 2010 by Jeff Weisberg
+# Author: Jeff Weisberg <jaw @ tcp4me.com>
+# Created: 2010-Nov-09 10:59 (EST)
+# Function: grep data
+
+my %opt;
+use Getopt::Long qw(:config no_ignore_case);
+use Pod::Usage;
+BEGIN {
+    GetOptions(\%opt,
+           "debug|d",
+           "devlibs|D",
+           "range=i",
+           "start=s",
+           "end=s",
+           "mrmode=s",
+           "datamode=s",
+           "system=s",
+           "master=s",
+           "faster",		# use /bin/grep, format, outcols ignored, syntax different, may include data outside the date range, ...
+           "format|fmt=s",	# json | pretty | log
+           "outcols=s",		# columns to output
+           "report",
+           "progress",
+          ) || exit;
+
+    my $devlib = $ENV{ACDEVLIB} || "$ENV{HOME}/dev/adcopy/lib";
+    unshift @INC, ($opt{devlibs} ? $devlib : '/home/adcopy/lib');
+};
+
+# ARGV: param=value | param=/regex/ [...]
+
+use AC::MrQuincy::Client;
+use AC::Puzzles;
+use AC::ISOTime;
+use strict;
+
+# determine config from cmdline
+$opt{range} ||= 1;	# 1 day
+$opt{console} = 1;
+$opt{format} ||= 'log';
+conf_time( \%opt, 'end',    int($^T / 86400) * 86400);		# today @ T00:00Z
+conf_time( \%opt, 'start',  $opt{end} - $opt{range} * 86400 );
+
+my $mrm;
+my %conf;
+
+if( $opt{faster} ){
+    my $job = mkgrep();
+    print STDERR $job if $opt{debug};
+
+    $mrm = AC::MrQuincy::Client->new( text => $job, israw => 1 );
+
+    # job compiler config
+    %conf = (
+        lang	=> 'raw',
+    );
+}else{
+    my $job = mkjob();
+    print STDERR $job if $opt{debug};
+
+    $mrm = AC::MrQuincy::Client->new( text => $job );
+
+    # job compiler config
+    %conf = (
+        lang	=> 'perl',
+        libdir	=> ($opt{devlibs} ? "$ENV{HOME}/dev/adcopy/lib" : '/home/adcopy/lib'),
+        runinit	=> 1,
+    );
+}
+
+$mrm->set_debug(1) if $opt{debug};
+$mrm->set_master(  $opt{master} )  if $opt{master};
+
+# console config
+my %concf;
+$concf{debug}    = sub{ print STDERR "@_\n" } if $opt{debug};
+$concf{report}   = sub{ print STDERR "@_\n" } if $opt{report};
+$concf{progress} = sub{ print STDERR "@_\n" } if $opt{progress};
+
+$mrm->compile( \%opt, %conf );
+
+$mrm->open_console();
+
+# run job! run!
+my $id = $mrm->submit( seedlist() );
+die "could not run job\n" unless $id;
+
+print STDERR "job: $id\n";
+$SIG{INT} = $SIG{QUIT} = sub{ $mrm->abort(); exit; };
+$mrm->run_console( %concf );
+
+exit;
+
+################################################################
+
+sub seedlist {
+    [ map { "$_->{addr}:$_->{port}" } get_ac_servers( ($opt{mrmode} || 'prod'), 'mrquincy' ) ];
+}
+
+sub conf_time {
+    my $opt = shift;
+    my $k   = shift;
+    my $dfl = shift;
+
+    if( $opt->{$k} eq 'now' ){
+        $opt->{$k} = $^T;
+    }elsif( $opt->{$k} ){
+        # convert isotime => timet
+        $opt->{$k} = timeiso( $opt->{$k} );
+    }else{
+        $opt->{$k} = $dfl;
+    }
+}
+
+
+sub mkgrep {
+
+    return <<EOJOB;
+<%map>
+#!/bin/sh
+
+grep @ARGV
+</%map>
+EOJOB
+    ;
+
+}
+
+sub mkjob {
+
+    my $grep = join("\n", map {
+        my($k, $op, $v) = split /(!?=)/, $_, 3;
+
+        if( $v =~ m|^/.+/.*$| ){
+            if( $op eq '!~' || $op eq '!=' ){
+            '    return unless $d->{' . $k . "} !~ " . $v . ";";
+            }else{
+            '    return unless $d->{' . $k . "} =~ " . $v . ";";
+            }
+        }elsif($op eq '!='){
+            '    return unless $d->{' . $k . "} ne '" . $v . "';";
+        }else{
+            '    return unless $d->{' . $k . "} eq '" . $v . "';";
+        }
+
+    } @ARGV);
+
+    # filter outputs columns
+    my $filt;
+    my $col;
+    if( $opt{outcols} ){
+        $col = 'my @COL = qw{' . $opt{outcols} . '};';
+        $filt = q(@d{@COL} = @$d{@COL};);
+    }else{
+        $filt = q(%d = %$d;);
+    }
+
+    # other formats?
+    my $out;
+    if( $opt{format} eq 'pretty' ){
+        $out = qq(print dumper(\\%d) . "\\n";);
+    }elsif( $opt{format} eq 'log' ){
+        $out = qq(print encode_dancr_log(\\%d) . "\\n";);
+    }else{
+        $out = qq(print encode_json(\\%d) . "\\n";);
+    }
+    return <<EOJOB;
+<%common>
+    use AC::Logfile;
+    use AC::Dumper;
+    use JSON;
+    $col
+</%common>
+<%map>
+    my \$d = shift;
+    \$R->output(1,1);	# prevent timeout
+$grep
+    my %d;
+    $filt
+    $out
+    return;
+</%map>
+EOJOB
+    ;
+}

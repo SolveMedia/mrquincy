@@ -36,7 +36,7 @@ sub new {
     my $trace = "$user/$$\@$host:" . ($from eq 'file' ? $src : 'text');
 
     # parse job
-    my $mrp = AC::MrQuincy::Submit::Parse->new( $from => $src );
+    my $mrp = AC::MrQuincy::Submit::Parse->new( $from => $src, @_ );
 
 
     return bless {
