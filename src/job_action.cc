@@ -174,7 +174,7 @@ TaskToDo::start(void){
 
     if( ! make_request( _job->_servers[_serveridx], PHMT_MR_TASKCREATE, &_g, IO_TIMEOUT ) ){
         string status = "FAILED";
-        _job->update( &_xid, &status, 0 );
+        _job->update( &_xid, &status, 0, 0 );
     }
 
     _job->thread_done();
@@ -185,7 +185,7 @@ XferToDo::start(void){
 
     if( ! make_request( _job->_servers[_serveridx], PHMT_MR_FILEXFER, &_g, IO_TIMEOUT ) ){
         string status = "FAILED";
-        _job->update( &_xid, &status, 0 );
+        _job->update( &_xid, &status, 0, 0 );
     }
 
     _job->thread_done();
@@ -238,7 +238,7 @@ XferToDo::cancel(void){
 
 
 void
-TaskToDo::finished(void){
+TaskToDo::finished(int amount){
 
     _job->inform("task %s finished", _xid.c_str());
     _job->derunning_x(this);
@@ -246,20 +246,30 @@ TaskToDo::finished(void){
     _job->_servers[ _serveridx ]->_n_task_running --;
     _job->_n_task_running --;
 
-    _run_time = lr_now() - _run_start;
+    // so how slow was it?
+    if( amount ){
+        _run_time = amount;
+    }else{
+        _run_time = lr_now() - _run_start;
+    }
+
     _job->_task_run_time += _run_time;
 
     create_xfers();
 }
 
 void
-XferToDo::finished(void){
+XferToDo::finished(int amount){
 
     _job->derunning_x(this);
     _state = JOB_TODO_STATE_FINISHED;
     _job->_servers[ _serveridx ]->_n_xfer_running --;
     _job->_servers[ _peeridx   ]->_n_xfer_peering --;
     _job->_n_xfer_running --;
+
+    // tally up file xfer sizes
+    _job->_plan[ _job->_stepno ]->_xfer_size += amount;
+    _job->_plan[ _job->_stepno ]->_n_xfers_run ++;
 
     delete this;
 }

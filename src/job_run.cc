@@ -81,7 +81,7 @@ Job::run(void){
 }
 
 int
-ToDo::update(const string *status, int progress){
+ToDo::update(const string *status, int progress, int amount){
 
     _last_status = lr_now();
 
@@ -94,7 +94,7 @@ ToDo::update(const string *status, int progress){
     DEBUG("update %s -> %s", _xid.c_str(), status->c_str());
 
     if( !status->compare("FINISHED") ){
-        finished();
+        finished(amount);
         return 1;
     }
     if( !status->compare("FAILED") ){
@@ -106,7 +106,7 @@ ToDo::update(const string *status, int progress){
 }
 
 int
-Job::update(const string *xid, const string *status, int progress){
+Job::update(const string *xid, const string *status, int progress, int amount){
 
     _lock.w_lock();
 
@@ -115,7 +115,7 @@ Job::update(const string *xid, const string *status, int progress){
     int done = 0;
 
     if( t ){
-        done = t->update(status, progress);
+        done = t->update(status, progress, amount);
     }
     _lock.w_unlock();
 

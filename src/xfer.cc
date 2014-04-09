@@ -33,8 +33,9 @@ class Xfer : public ACPMRMFileXfer {
 public:
     hrtime_t	_created;
     const char *_status;
+    int		_filesize;
 
-    Xfer() { _status = "PENDING"; _created = lr_now(); }
+    Xfer() { _status = "PENDING"; _created = lr_now(); _filesize = 0; }
 };
 
 
@@ -146,6 +147,7 @@ send_final_status(const Xfer *g){
     st.set_jobid( g->jobid() );
     st.set_xid( g->copyid() );
     st.set_phase( g->_status );
+    st.set_final_amount( g->_filesize );
 
     DEBUG("sending final status to %s", g->master().c_str());
 
@@ -258,6 +260,7 @@ try_xfer(Xfer *g, int l){
         return 0;
     }
 
+    g->_filesize = phi->content_length;
     return 1;
 
 }

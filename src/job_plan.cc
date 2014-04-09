@@ -87,6 +87,7 @@ Job::plan(void){
         if( i > 1 ) b << "+";
         b << _plan[i]->_tasks.size();
     }
+    if( _plan.size() == 1 ) b << "0";
 
     const char *bc = b.str().c_str();
     report(bc);

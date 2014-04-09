@@ -218,7 +218,7 @@ QueuedJob::update(ACPMRMActionStatus *g){
     int s = 0;
 
     if( found )
-        s = found->update( & g->xid(), & g->phase(), g->progress() );
+        s = found->update( & g->xid(), & g->phase(), g->progress(), g->final_amount() );
 
     _lock.r_unlock();
 
@@ -468,12 +468,12 @@ format_dt(int sec, ostringstream &b){
     char buf[64];
 
     if( !h ){
-        snprintf(buf, sizeof(buf), "%02d:%02d", m,sec);
+        snprintf(buf, sizeof(buf), "%d:%02d", m,sec);
     }else{
-        snprintf(buf, sizeof(buf), "%02d:%02d:%02d", h, m,sec);
+        snprintf(buf, sizeof(buf), "%d:%02d:%02d", h, m,sec);
     }
 
-    b << std::setw(16) << buf;
+    b << buf;
 }
 
 void
@@ -532,8 +532,10 @@ Step::report_final_stats(Job *j){
         if( max < t->_run_time )         max = t->_run_time;
     }
 
+    // xfers...
     b << "phase " << _phase
-      << ", "     << ntask << " tasks, ";
+      << ", "     << ntask 	  << " tasks"
+      << ", "     << _n_xfers_run << " xfers " << _xfer_size / 1000000 << "MB; ";
     format_dt(sum, b); 		b << " cpu, ";
     format_dt(_run_time, b);	b << " wall";
 

@@ -51,8 +51,9 @@ public:
     int		_pid;
     const char *_status;
     int		_progress;
+    int		_runtime;
 
-    Task() { _pid = 0; _status = "PENDING"; _progress = 0; _created = lr_now(); }
+    Task() { _pid = 0; _status = "PENDING"; _progress = 0; _created = lr_now(); _runtime = 0; }
 };
 
 #define static /* XXX */
@@ -242,6 +243,7 @@ send_final_status(const Task *g){
     st.set_xid( g->taskid() );
     st.set_phase( g->_status );
     st.set_progress( g->_progress );
+    st.set_final_amount(  g->_runtime );
 
     DEBUG("sending final status to %s", g->master().c_str());
 
@@ -281,7 +283,9 @@ do_task(void *x){
     //  try several times
     int tries = MAXTRIES;
     for(int i=0; i<tries; i++){
+        hrtime_t start = lr_now();
         ok = try_task(g);
+        g->_runtime = lr_now() - start;
         if( ok ) break;
         sleep(5);
     }
@@ -291,7 +295,7 @@ do_task(void *x){
     else
         g->_status = "FAILED";
 
-    DEBUG("task done (%s) %s", g->_status, g->taskid().c_str());
+    DEBUG("task done (%s) %s - %d sec", g->_status, g->taskid().c_str(), g->_runtime);
     send_final_status(g);
 
     taskq.done(x);

@@ -59,13 +59,13 @@ protected:
     string		_status;
     int			_progress;
 
-    int			update(const string*, int);
+    int			update(const string*, int, int);
     void		pending(void){ _state = JOB_TODO_STATE_PENDING; }
 
     virtual int		maybe_start(void) = 0;
     virtual void	abort(void) = 0;
     virtual void	cancel(void) = 0;
-    virtual void	finished(void) = 0;
+    virtual void	finished(int) = 0;
     virtual void	failed(bool) = 0;
     void		timedout(void);
     void		retry_or_abort(bool);
@@ -94,7 +94,7 @@ class TaskToDo : public ToDo {
     virtual int		maybe_start(void);
     virtual void	abort(void);
     virtual void	cancel(void);
-    virtual void	finished(void);
+    virtual void	finished(int);
     virtual void	failed(bool);
 
 public:
@@ -111,7 +111,7 @@ class XferToDo : public ToDo {
     virtual int		maybe_start(void);
     virtual void	abort(void);
     virtual void	cancel(void);
-    virtual void	finished(void);
+    virtual void	finished(int);
     virtual void	failed(bool);
 
 public:
@@ -130,13 +130,16 @@ class Step {
     // stats
     hrtime_t		_run_start;
     int			_run_time;
+    long long		_xfer_size;
+    int			_n_xfers_run;
 
-    Step(){ _run_start = 0; _run_time = 0; }
+    Step(){ _run_start = 0; _run_time = 0; _xfer_size = 0; _n_xfers_run = 0; }
     ~Step();
     int			read_map_plan(Job *, FILE*);
     void		report_final_stats(Job *);
 
     friend class Job;
+    friend class XferToDo;
 };
 
 
@@ -176,7 +179,7 @@ class Job : public ACPMRMJobCreate {
     int			_n_fails;
 
     void		abort(void);
-    int			update(const string*, const string*, int);
+    int			update(const string*, const string*, int, int);
     void		send_eu_msg_x(const char *, const char *) const;
 
     int			plan(void);

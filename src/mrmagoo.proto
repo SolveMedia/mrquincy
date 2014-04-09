@@ -75,6 +75,7 @@ message ACPMRMActionStatus {
         required string         xid             = 2;
         required string         phase           = 3;
         optional int32          progress        = 4;
+        optional int32		final_amount    = 5;	// file size or run time
 }
 
 
