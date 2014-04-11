@@ -58,7 +58,7 @@ Job::plan(void){
 
     for(int i=0; i<nstep; i++){
         Step * s = new Step;
-        s->_phase = section(i).phase();
+        s->_phase = section(i).phase().c_str();
         _plan[i] = s;
     }
     _lock.w_unlock();
@@ -274,19 +274,19 @@ TaskToDo::TaskToDo(Job *j, int n){
     _run_time    = 0;
     _delay_until = 0;
 
-    _g.set_jobid(   j->jobid() );
-    _g.set_console( j->console() );
-    _g.set_master(  myipandport );
+    _g.set_jobid(   j->jobid().c_str() );
+    _g.set_console( j->console().c_str() );
+    _g.set_master(  myipandport.c_str() );
 
     const ACPMRMJobPhase *jp = &j->section(n);
 
-    _g.set_phase(   jp->phase() );
-    _g.set_jobsrc(  jp->src() );
+    _g.set_phase(   jp->phase().c_str() );
+    _g.set_jobsrc(  jp->src().c_str() );
     _g.set_maxrun(  jp->maxrun() );
     _g.set_timeout( jp->timeout() );
 
     unique( &_xid );
-    _g.set_taskid( _xid );
+    _g.set_taskid( _xid.c_str() );
 }
 
 int

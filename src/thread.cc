@@ -21,7 +21,7 @@
 
 int
 start_thread(void *(*func)(void*), void *arg){
-    pthread_t *tid = new pthread_t;
+    pthread_t tid;
     pthread_attr_t attr;
     int err;
 
@@ -29,7 +29,7 @@ start_thread(void *(*func)(void*), void *arg){
     pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-    err = pthread_create(tid, &attr, func, arg);
+    err = pthread_create(&tid, &attr, func, arg);
 
     DEBUG("starting thread %x => %d", tid, err);
     if(err) PROBLEM("cannot create thread: %d", err);

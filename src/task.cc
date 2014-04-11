@@ -147,6 +147,11 @@ QueuedTask::shutdown(void){
 
     _lock.w_lock();
 
+    for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        void *g = *it;
+        Task *t = (Task*)g;
+        delete t;
+    }
     _queue.clear();
 
     for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
@@ -155,6 +160,8 @@ QueuedTask::shutdown(void){
         VERBOSE("aborting task %s", t->taskid().c_str());
         if( t->_pid ) kill( t->_pid, 3 );
     }
+    _running.clear();
+
     _lock.w_unlock();
 }
 
@@ -180,6 +187,7 @@ QueuedTask::abort(const string *id){
     }
     if( found ){
         _queue.remove(found);
+        delete (Task*)found;
     }else{
         for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
             void *g = *it;
@@ -222,8 +230,8 @@ QueuedTask::send_status(void *xg){
 
     if( !g->has_master() || g->master().empty() ) return;
 
-    st.set_jobid( g->jobid() );
-    st.set_xid( g->taskid() );
+    st.set_jobid( g->jobid().c_str() );
+    st.set_xid( g->taskid().c_str() );
     st.set_phase( g->_status );
     st.set_progress( g->_progress );
 
@@ -239,8 +247,8 @@ send_final_status(const Task *g){
 
     if( !g->has_master() || g->master().empty() ) return;
 
-    st.set_jobid( g->jobid() );
-    st.set_xid( g->taskid() );
+    st.set_jobid( g->jobid().c_str() );
+    st.set_xid( g->taskid().c_str() );
     st.set_phase( g->_status );
     st.set_progress( g->_progress );
     st.set_final_amount(  g->_runtime );
@@ -268,7 +276,7 @@ QueuedTask::json1(const char *st, void *x, string *dst){
       << "\"pid\": "            << g->_pid
       << "}";
 
-    dst->append(b.str());
+    dst->append(b.str().c_str());
 }
 
 static void *
@@ -476,6 +484,7 @@ run_task_prog(int parent_fd, Task *g){
     EUConsole eu_out("stdout", g);
     EUConsole eu_err("stderr", g);
     char *eubuf = (char*)malloc(EUBUFSIZE);
+    if( !eubuf ) FATAL("out of memory");
     alarm(0);
 
     // create the processing pipeline (eg. gzcat files | sort | program)

@@ -104,7 +104,7 @@ QueuedXfer::json1(const char *st, void *x, string *dst){
       << "\"start_time\": "     << g->_created
       << "}";
 
-    dst->append(b.str());
+    dst->append(b.str().c_str());
 }
 
 bool
@@ -130,8 +130,8 @@ QueuedXfer::send_status(void *xg){
 
     if( !g->has_master() ) return;
 
-    st.set_jobid( g->jobid() );
-    st.set_xid( g->copyid() );
+    st.set_jobid( g->jobid().c_str() );
+    st.set_xid( g->copyid().c_str() );
     st.set_phase( g->_status );
 
     toss_request( udp4_fd, g->master().c_str(), PHMT_MR_XFERSTATUS, &st);
@@ -144,8 +144,8 @@ send_final_status(const Xfer *g){
 
     if( !g->has_master() || g->master().empty() ) return;
 
-    st.set_jobid( g->jobid() );
-    st.set_xid( g->copyid() );
+    st.set_jobid( g->jobid().c_str() );
+    st.set_xid( g->copyid().c_str() );
     st.set_phase( g->_status );
     st.set_final_amount( g->_filesize );
 
@@ -209,7 +209,7 @@ try_xfer(Xfer *g, int l){
     }
 
     // build get req
-    req.set_filename( g->filename() );
+    req.set_filename( g->filename().c_str() );
 
     // connect
     int fd = tcp_connect(na, TIMEOUT);

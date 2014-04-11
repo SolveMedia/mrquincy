@@ -29,7 +29,7 @@
 
 
 Delete::Delete(const string *file){
-    _filename  = *file;
+    _filename.assign( file->c_str() );
 }
 
 void
@@ -87,7 +87,7 @@ Job::do_deletes(void){
     _lock.r_lock();
     int nserv = _servers.size();
     string jobdir = "mrtmp/j_";	// see also: job_plan.cc
-    jobdir.append( jobid() );
+    jobdir.append( jobid().c_str() );
     _lock.r_unlock();
 
     for(int idx=0; idx<nserv; idx++){
@@ -100,7 +100,7 @@ Job::do_deletes(void){
 
         for(list<Delete*>::iterator it=dele.begin(); it != dele.end(); it++){
             Delete *d = *it;
-            req.add_filename( d->_filename );
+            req.add_filename( d->_filename.c_str() );
             ndele++;
 
             if( req.filename_size() >= MAXFILES ){
@@ -111,7 +111,7 @@ Job::do_deletes(void){
         }
 
         // remove job dir
-        req.add_filename( jobdir );
+        req.add_filename( jobdir.c_str() );
 
         if( req.filename_size() )
             make_request(srvr, PHMT_MR_FILEDEL, &req, TIMEOUT);

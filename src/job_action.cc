@@ -73,7 +73,9 @@ TaskToDo::failed(bool did_timeout){
 void
 XferToDo::failed(bool did_timeout){
 
-    _job->kvetch("xfer %s failed file %s host %s - %s", _xid.c_str(), _g.filename().c_str(), _job->_servers[_serveridx]->name.c_str(), _g.location(0).c_str());
+    _job->kvetch("xfer %s failed file %s host %s - %s", _xid.c_str(), _g.filename().c_str(),
+                 _job->_servers[_serveridx]->name.c_str(), _g.location(0).c_str());
+
     _job->derunning_x(this);
     _job->_servers[ _serveridx ]->_n_xfer_running --;
     _job->_servers[ _peeridx   ]->_n_xfer_peering --;
@@ -127,7 +129,9 @@ TaskToDo::maybe_start(void){
     if( !_tries )
         create_deles();
 
-    _job->inform("starting task %s - %s on %s", _xid.c_str(), _g.phase().c_str(), _job->_servers[ _serveridx ]->name.c_str());
+    _job->inform("starting task %s - %s on %s", _xid.c_str(), _g.phase().c_str(),
+                 _job->_servers[ _serveridx ]->name.c_str());
+
     _job->_servers[ _serveridx ]->_n_task_running ++;
     _job->_n_task_running ++;
     _job->_n_tasks_run ++;
@@ -149,7 +153,9 @@ XferToDo::maybe_start(void){
     if( _job->_n_xfer_running >= XFERMAX ) return 0;
     if( ! start_check() ) return 0;
 
-    _job->inform("starting xfer %s - %s : %s", _xid.c_str(), _g.filename().c_str(), _job->_servers[ _serveridx ]->name.c_str());
+    _job->inform("starting xfer %s - %s : %s", _xid.c_str(), _g.filename().c_str(),
+                 _job->_servers[ _serveridx ]->name.c_str());
+
     _job->_servers[ _serveridx ]->_n_xfer_running ++;
     _job->_servers[ _peeridx   ]->_n_xfer_peering ++;
     _job->_n_xfer_running ++;
@@ -199,8 +205,8 @@ TaskToDo::abort(void){
 
     if( _state != JOB_TODO_STATE_RUNNING ) return;
 
-    req.set_jobid( _job->jobid() );
-    req.set_taskid( _xid );
+    req.set_jobid( _job->jobid().c_str() );
+    req.set_taskid( _xid.c_str() );
 
     // udp fire+forget
     toss_request(udp4_fd, _job->_servers[ _serveridx ], PHMT_MR_TASKABORT, &req );
@@ -219,8 +225,8 @@ TaskToDo::cancel(void){
 
     if( _state != JOB_TODO_STATE_RUNNING ) return;
 
-    req.set_jobid( _job->jobid() );
-    req.set_taskid( _xid );
+    req.set_jobid( _job->jobid().c_str() );
+    req.set_taskid( _xid.c_str() );
 
     make_request( _job->_servers[_serveridx], PHMT_MR_TASKABORT, &req, IO_TIMEOUT );
 }
@@ -271,7 +277,6 @@ XferToDo::finished(int amount){
     _job->_plan[ _job->_stepno ]->_xfer_size += amount;
     _job->_plan[ _job->_stepno ]->_n_xfers_run ++;
 
-    delete this;
 }
 
 XferToDo::XferToDo(Job *j, const string *name, int src, int dst){
@@ -284,12 +289,12 @@ XferToDo::XferToDo(Job *j, const string *name, int src, int dst){
     _tries       = 0;
     _delay_until = 0;
 
-    _g.set_jobid(   j->jobid() );
-    _g.set_console( j->console() );
-    _g.set_master(  myipandport );
-    _g.set_copyid(  _xid );
-    _g.set_filename( *name );
-    _g.add_location( _job->_servers[src]->name );
+    _g.set_jobid(   j->jobid().c_str() );
+    _g.set_console( j->console().c_str() );
+    _g.set_master(  myipandport.c_str() );
+    _g.set_copyid(  _xid.c_str() );
+    _g.set_filename( name->c_str() );
+    _g.add_location( _job->_servers[src]->name.c_str() );
 
 }
 
@@ -306,6 +311,7 @@ TaskToDo::create_xfers(void){
         if( _serveridx == (i % nserv) ) continue;	// no need to copy
         XferToDo *x = new XferToDo(_job, &_g.outfile(i), _serveridx, i%nserv);
         _job->_pending.push_back(x);
+        _job->_xfers.push_back(x);
 
         // backup - (i+1) % nserv
 

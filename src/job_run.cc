@@ -89,7 +89,7 @@ ToDo::update(const string *status, int progress, int amount){
     _progress    = progress;
 
     if( _status == *status ) return 0;
-    _status      = *status;
+    _status.assign( status->c_str() );
 
     DEBUG("update %s -> %s", _xid.c_str(), status->c_str());
 

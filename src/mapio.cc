@@ -40,6 +40,7 @@ BufferedInput::BufferedInput(int fd){
     _buf    = (char*)malloc(INITIALSIZE);
     _bufsiz = INITIALSIZE;
 
+    if( !_buf ) FATAL("out of memory!");
 }
 
 BufferedInput::~BufferedInput(){
@@ -246,6 +247,7 @@ BufferedMapOutput::BufferedMapOutput(const char *file){
     _curpos = 0;
     _fd     = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 
+    if( !_buf )   FATAL("out of memory!");
     if( _fd < 0 ) FATAL("cannot open file %s: %s", file, strerror(errno));
 }
 

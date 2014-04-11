@@ -86,8 +86,8 @@ adjust_console(int fd, Job *req){
     getpeername(fd, (sockaddr*)&sa, &sal);
 
     string cons = inet_ntoa(sa.sin_addr);
-    cons.append( req->console() );
-    req->set_console( cons );
+    cons.append( req->console().c_str() );
+    req->set_console( cons.c_str() );
     DEBUG("console: %s", cons.c_str());
 }
 
@@ -165,8 +165,8 @@ handle_jobstatus(NTD *ntd){
     // tell the slave to abort the task
     if( !ntd->is_tcp ){
         ACPMRMTaskAbort ab;
-        ab.set_jobid( req.jobid() );
-        ab.set_taskid( req.xid() );
+        ab.set_jobid( req.jobid().c_str() );
+        ab.set_taskid( req.xid().c_str() );
         DEBUG("sending job 404 to %s", inet_ntoa(ntd->peer.sin_addr));
         toss_request(udp4_fd, & ntd->peer, PHMT_MR_TASKABORT, &ab);
     }
@@ -231,6 +231,11 @@ QueuedJob::shutdown(void){
 
     _lock.w_lock();
 
+    for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        void *g = *it;
+        Job *j = (Job*)g;
+        delete j;
+    }
     _queue.clear();
 
     for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
@@ -239,6 +244,8 @@ QueuedJob::shutdown(void){
         VERBOSE("aborting job %s", j->jobid().c_str());
         j->abort();
     }
+    _running.clear();
+
     _lock.w_unlock();
 }
 
@@ -264,6 +271,7 @@ QueuedJob::abort(const string *id){
     }
     if( found ){
         _queue.remove((void*)found);
+        delete found;
     }else{
         for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
             void *g = *it;
@@ -273,13 +281,11 @@ QueuedJob::abort(const string *id){
                 break;
             }
         }
+
+        if(found) found->abort();
     }
 
-    if(found)
-        found->abort();
-
     _lock.w_unlock();
-
 }
 
 bool
@@ -331,17 +337,17 @@ Job::json(const char *st, string *dst){
     if( _state == JOB_STATE_QUEUED   ) ph = "queued";
 
 
-    b << "{\"jobid\": \""       << jobid()      << "\", "
-      << "\"state\": \""        << st           << "\", "
-      << "\"phase\": \""        << ph           << "\", "
-      << "\"traceinfo\": \""    << traceinfo()  << "\", "
-      << "\"options\": "        << options()    << ", "		// options is json
+    b << "{\"jobid\": \""       << jobid().c_str()      << "\", "
+      << "\"state\": \""        << st                   << "\", "
+      << "\"phase\": \""        << ph           	<< "\", "
+      << "\"traceinfo\": \""    << traceinfo().c_str()  << "\", "
+      << "\"options\": "        << options().c_str()    << ", "		// options is json
       << "\"start_time\": "     << _created
       << "}";
 
     _lock.r_unlock();
 
-    dst->append(b.str());
+    dst->append(b.str().c_str());
 }
 
 ToDo *
@@ -360,8 +366,8 @@ Job::send_eu_msg_x(const char *type, const char *msg) const{
     if( has_console() ){
         ACPMRMDiagMsg gm;
 
-        gm.set_jobid( jobid() );
-        gm.set_server_id( myserver_id );
+        gm.set_jobid( jobid().c_str() );
+        gm.set_server_id( myserver_id.c_str() );
         gm.set_type( type );
         gm.set_msg(  msg );
 
@@ -572,6 +578,13 @@ Job::~Job(){
 
     _lock.w_lock();
 
+    if( _n_threads ){
+        VERBOSE("~Job sees %d threads still active", _n_threads );
+        sleep(1);
+    }
+
+    VERBOSE("destroy job %s", jobid().c_str());
+
     int nstep = _plan.size();
     for(int i=0; i<nstep; i++){
         Step *s = _plan[i];
@@ -582,6 +595,11 @@ Job::~Job(){
     for(int i=0; i<nserv; i++){
         Server *s = _servers[i];
         delete s;
+    }
+
+    for(list<XferToDo*>::iterator it=_xfers.begin(); it != _xfers.end(); it++){
+        XferToDo *x = *it;
+        delete x;
     }
 
     _lock.w_unlock();

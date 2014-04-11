@@ -167,6 +167,7 @@ class Job : public ACPMRMJobCreate {
     vector<Server*> 	_servers;
     list<ToDo*>     	_running;
     list<ToDo*>     	_pending;
+    list<XferToDo*>	_xfers;
     vector<Step*>    	_plan;
 
     // stats...

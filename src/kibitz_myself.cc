@@ -72,11 +72,11 @@ about_myself(ACPMRMStatus *g){
     getloadavg( load, 3 );
 
     g->set_hostname( myhostname );
-    g->set_server_id( myserver_id );
-    g->set_datacenter( mydatacenter );
-    g->set_environment( config->environment );
+    g->set_server_id( myserver_id.c_str() );
+    g->set_datacenter( mydatacenter.c_str() );
+    g->set_environment( config->environment.c_str() );
     g->set_subsystem( MYNAME );
-    g->set_via( myserver_id );
+    g->set_via( myserver_id.c_str() );
     g->set_path( "." );
     g->set_status( (now > starttime + BOOTTIME) ? 200 : 102 );
     g->set_timestamp( now );
@@ -100,7 +100,7 @@ about_myself(ACPMRMStatus *g){
         ip = g->add_ip();
         ip->set_ipv4( ntohl(pinip4) );
         ip->set_port( myport );
-        ip->set_natdom( mydatacenter );
+        ip->set_natdom( mydatacenter.c_str() );
     }
 }
 

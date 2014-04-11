@@ -874,7 +874,7 @@ handle_hbreq(NTD* ntd){
     g.set_timestamp( lr_now() );
     g.set_port( myport );
     string compat = "mrq/" + myserver_id;	// XXX - temporary compat
-    g.set_server_id( compat );
+    g.set_server_id( compat.c_str() );
     g.set_process_id( getpid() );
 
     // determine disk space
