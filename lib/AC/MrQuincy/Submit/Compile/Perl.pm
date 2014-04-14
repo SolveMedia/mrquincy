@@ -144,12 +144,12 @@ __END_OF_INITRES_$uniq\__
 EOCOMMON
     ;
 
-    $code .= "{\n";
+    $code .= "sub {\n";
     $code .= $sec->{init} if $sec->{init};
     $code .= "\nsub program {\n$sec->{code}\nreturn;\n}\n";
     $code .= $loop;
     $code .= $sec->{cleanup} if $sec->{cleanup};
-    $code .= "};\n";
+    $code .= "}->();\n";
 
     return {
         phase	=> $name,
