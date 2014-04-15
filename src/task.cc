@@ -45,18 +45,18 @@ using std::ostringstream;
 #define EUBUFSIZE	8192
 
 
-class Task : public ACPMRMTaskCreate {
+class Task {
 public:
-    hrtime_t	_created;
-    int		_pid;
-    const char *_status;
-    int		_progress;
-    int		_runtime;
+    ACPMRMTaskCreate  _g;
+    hrtime_t          _created;
+    int               _pid;
+    const char       *_status;
+    int               _progress;
+    int               _runtime;
 
     Task() { _pid = 0; _status = "PENDING"; _progress = 0; _created = lr_now(); _runtime = 0; }
 };
 
-#define static /* XXX */
 
 extern void install_handler(int, void(*)(int));
 extern int  create_pipeline(ACPMRMTaskCreate *, int*);
@@ -103,10 +103,10 @@ handle_task(NTD *ntd){
     Task *req = new Task;
 
     // parse request
-    req->ParsePartialFromArray( ntd->in_data(), phi->data_length );
-    DEBUG("l=%d, %s", phi->data_length, req->ShortDebugString().c_str());
+    req->_g.ParsePartialFromArray( ntd->in_data(), phi->data_length );
+    DEBUG("l=%d, %s", phi->data_length, req->_g.ShortDebugString().c_str());
 
-    if( ! req->IsInitialized() ){
+    if( ! req->_g.IsInitialized() ){
         DEBUG("invalid request. missing required fields");
         exit(-1);
         return 0;
@@ -157,7 +157,7 @@ QueuedTask::shutdown(void){
     for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
         void *g = *it;
         Task *t = (Task*)g;
-        VERBOSE("aborting task %s", t->taskid().c_str());
+        VERBOSE("aborting task %s", t->_g.taskid().c_str());
         if( t->_pid ) kill( t->_pid, 3 );
     }
     _running.clear();
@@ -168,7 +168,7 @@ QueuedTask::shutdown(void){
 void
 QueuedTask::abort(const string *id){
 
-    void *found = 0;
+    Task *found = 0;
     int killpid = 0;
 
     // find task
@@ -180,20 +180,20 @@ QueuedTask::abort(const string *id){
     for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
         void *g = *it;
         Task *t = (Task*)g;
-        if( !id->compare( t->taskid() ) ){
-            found = g;
+        if( !id->compare( t->_g.taskid() ) ){
+            found = t;
             break;
         }
     }
     if( found ){
-        _queue.remove(found);
-        delete (Task*)found;
+        _queue.remove( (void*)found);
+        delete found;
     }else{
         for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
             void *g = *it;
             Task *t = (Task*)g;
-            if( !id->compare( t->taskid() ) ){
-                found = g;
+            if( !id->compare( t->_g.taskid() ) ){
+                found = t;
                 killpid  = t->_pid;
                 break;
             }
@@ -209,31 +209,32 @@ QueuedTask::abort(const string *id){
 
 bool
 QueuedTask::same(void *xa, void *xb){
-    Task *ga = (Task*)xa;
-    Task *gb = (Task*)xb;
+    Task *ta = (Task*)xa;
+    Task *tb = (Task*)xb;
 
-    const string *id = & ga->taskid();
-    return id->compare( gb->taskid() ) ? 0 : 1;
+    const string *id = & ta->_g.taskid();
+    return id->compare( tb->_g.taskid() ) ? 0 : 1;
 }
 
 void
 QueuedTask::start(void *xg){
-    Task *g = (Task*)xg;
+    Task *t = (Task*)xg;
 
-    start_thread(do_task, (void*)g);
+    start_thread(do_task, (void*)t);
 }
 
 void
 QueuedTask::send_status(void *xg){
-    Task *g = (Task*)xg;
+    Task *t = (Task*)xg;
+    const ACPMRMTaskCreate *g = & t->_g;
     ACPMRMActionStatus st;
 
     if( !g->has_master() || g->master().empty() ) return;
 
     st.set_jobid( g->jobid().c_str() );
     st.set_xid( g->taskid().c_str() );
-    st.set_phase( g->_status );
-    st.set_progress( g->_progress );
+    st.set_phase( t->_status );
+    st.set_progress( t->_progress );
 
     DEBUG("sending status to %s", g->master().c_str());
 
@@ -242,16 +243,17 @@ QueuedTask::send_status(void *xg){
 
 // the final status goes over tcp
 static void
-send_final_status(const Task *g){
+send_final_status(const Task *t){
     ACPMRMActionStatus st;
+    const ACPMRMTaskCreate *g = & t->_g;
 
     if( !g->has_master() || g->master().empty() ) return;
 
     st.set_jobid( g->jobid().c_str() );
     st.set_xid( g->taskid().c_str() );
-    st.set_phase( g->_status );
-    st.set_progress( g->_progress );
-    st.set_final_amount(  g->_runtime );
+    st.set_phase( t->_status );
+    st.set_progress( t->_progress );
+    st.set_final_amount(  t->_runtime );
 
     DEBUG("sending final status to %s", g->master().c_str());
 
@@ -265,15 +267,16 @@ json_task(string *dst){
 
 void
 QueuedTask::json1(const char *st, void *x, string *dst){
-    Task *g = (Task*)x;
+    Task *t = (Task*)x;
+    const ACPMRMTaskCreate *g = & t->_g;
     ostringstream b;
 
     b << "{\"jobid\": \""       << g->jobid()   << "\", "
       << "\"taskid\": \""       << g->taskid()  << "\", "
       << "\"status\": \""       << st           << "\", "
       << "\"phase\": \""        << g->phase()   << "\", "
-      << "\"start_time\": "     << g->_created  << ", "
-      << "\"pid\": "            << g->_pid
+      << "\"start_time\": "     << t->_created  << ", "
+      << "\"pid\": "            << t->_pid
       << "}";
 
     dst->append(b.str().c_str());
@@ -281,33 +284,34 @@ QueuedTask::json1(const char *st, void *x, string *dst){
 
 static void *
 do_task(void *x){
-    Task *g = (Task*)x;
+    Task *t = (Task*)x;
+    const ACPMRMTaskCreate *g = & t->_g;
     bool ok = 1;
 
-    g->_status = "STARTING";
+    t->_status = "STARTING";
     taskq.send_status(x);
-    g->_status = "RUNNING";
+    t->_status = "RUNNING";
 
     //  try several times
     int tries = MAXTRIES;
     for(int i=0; i<tries; i++){
         hrtime_t start = lr_now();
-        ok = try_task(g);
-        g->_runtime = lr_now() - start;
+        ok = try_task(t);
+        t->_runtime = lr_now() - start;
         if( ok ) break;
         sleep(5);
     }
 
     if( ok )
-        g->_status = "FINISHED";
+        t->_status = "FINISHED";
     else
-        g->_status = "FAILED";
+        t->_status = "FAILED";
 
-    DEBUG("task done (%s) %s - %d sec", g->_status, g->taskid().c_str(), g->_runtime);
-    send_final_status(g);
+    DEBUG("task done (%s) %s - %d sec", t->_status, g->taskid().c_str(), t->_runtime);
+    send_final_status(t);
 
     taskq.done(x);
-    delete g;
+    delete t;
 
     // and start another one...
     taskq.start_more(MAXTASK);
@@ -329,14 +333,14 @@ close_files(int pfd){
 }
 
 static void
-read_progress(int fd, Task *g){
+read_progress(int fd, Task *t){
     int progress;
 
     // if the child sends something, it should be integer progress
     // NB. nothing bad happens if this blocks
     int r = read(fd, &progress, sizeof(int));
     if( r != sizeof(int) ) return;
-    g->_progress = progress;
+    t->_progress = progress;
     DEBUG("progress %d", progress);
 }
 
@@ -344,7 +348,8 @@ read_progress(int fd, Task *g){
 // use a pipe to detect the child ending
 
 static int
-try_task(Task *g){
+try_task(Task *t){
+    const ACPMRMTaskCreate *g = & t->_g;
 
     DEBUG("task running %s", g->taskid().c_str());
 
@@ -368,11 +373,11 @@ try_task(Task *g){
         // child
         close(pipfd[0]);
         close_files(pipfd[1]);
-        run_task_prog(pipfd[1], g);
+        run_task_prog(pipfd[1], t);
         _exit(-1);
     }
     // parent
-    g->_pid = pid;
+    t->_pid = pid;
     close(pipfd[1]);
 
     DEBUG("child pid %d - running", pid);
@@ -398,7 +403,7 @@ try_task(Task *g){
         if( pf[0].revents & (POLLHUP | POLLERR) ) break;
 
         // if any data comes through, suck it in
-        if( pf[0].revents & POLLIN ) read_progress(pipfd[0], g);
+        if( pf[0].revents & POLLIN ) read_progress(pipfd[0], t);
     }
 
     close(pipfd[0]);
@@ -463,8 +468,9 @@ setup_process(int need){
 // set up io and run the program
 
 static void
-run_task_prog(int parent_fd, Task *g){
+run_task_prog(int parent_fd, Task *t){
     hrtime_t t0 = lr_now();
+    const ACPMRMTaskCreate *g = & t->_g;
 
     setup_process(g->outfile_size() + 8);
 

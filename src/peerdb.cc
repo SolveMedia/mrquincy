@@ -436,3 +436,22 @@ PeerDB::peer_dn(const char *id){
     _lock.w_unlock();
 }
 
+PeerDB::~PeerDB(){
+
+    _lock.w_lock();
+
+    for(list<Peer*>::iterator it=_allpeers.begin(); it != _allpeers.end(); it++){
+        Peer *p = *it;
+        delete p;
+    }
+    for(list<Peer*>::iterator it=_sceptical.begin(); it != _sceptical.end(); it++){
+        Peer *p = *it;
+        delete p;
+    }
+    for(list<Peer*>::iterator it=_graveyard.begin(); it != _graveyard.end(); it++){
+        Peer *p = *it;
+        delete p;
+    }
+
+    _lock.w_unlock();
+}

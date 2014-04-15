@@ -130,6 +130,7 @@ sub plan_map {
 
         my $ntask = ceil( $serversize{$s} / $MAPSIZELIMIT );
         $ntask = $MAPTARGETMIN if $ntask < $MAPTARGETMIN;
+        $ntask = $config->{mapsperserver} if defined $config->{mapsperserver};
         my @tf;
         my @ts;
 

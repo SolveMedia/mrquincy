@@ -73,7 +73,7 @@ class MapOutSet {
     vector<MapOutput*>		_file;
 
 public:
-    MapOutSet(ACPMRMTaskCreate*);
+    MapOutSet(const ACPMRMTaskCreate*);
 
     void output(const char *, int);
     void close(void);

@@ -28,6 +28,7 @@ use strict;
 
 sub new {
     my $class = shift;
+    my $lang  = shift;
     my $from  = shift;	# file | text
     my $src   = shift;
 
@@ -36,10 +37,11 @@ sub new {
     my $trace = "$user/$$\@$host:" . ($from eq 'file' ? $src : 'text');
 
     # parse job
-    my $mrp = AC::MrQuincy::Submit::Parse->new( $from => $src, @_ );
+    my $mrp = AC::MrQuincy::Submit::Parse->new( $from => $src, lang => $lang );
 
 
     return bless {
+        lang	=> $lang,
         fdebug  => sub{},
         prog	=> $mrp,
         job	=> {

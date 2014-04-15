@@ -51,14 +51,14 @@ Job::plan(void){
 
     _lock.w_lock();
     _state = JOB_STATE_PLANNING;
-    int nstep = section_size();
+    int nstep = _g.section_size();
 
     // allocate the steps
     _plan.resize( nstep );
 
     for(int i=0; i<nstep; i++){
         Step * s = new Step;
-        s->_phase = section(i).phase().c_str();
+        s->_phase = _g.section(i).phase().c_str();
         _plan[i] = s;
     }
     _lock.w_unlock();
@@ -237,7 +237,7 @@ int
 Job::plan_map(void){
     int pid = 0;
 
-    int fd = run_planner( this, &options(), &pid );
+    int fd = run_planner( this, &_g.options(), &pid );
     if( fd == -1 ) return 0;
     FILE *f = fdopen( fd, "r" );
     if( !f ){
@@ -274,11 +274,11 @@ TaskToDo::TaskToDo(Job *j, int n){
     _run_time    = 0;
     _delay_until = 0;
 
-    _g.set_jobid(   j->jobid().c_str() );
-    _g.set_console( j->console().c_str() );
+    _g.set_jobid(   j->_id );
+    _g.set_console( j->_g.console().c_str() );
     _g.set_master(  myipandport.c_str() );
 
-    const ACPMRMJobPhase *jp = &j->section(n);
+    const ACPMRMJobPhase *jp = &j->_g.section(n);
 
     _g.set_phase(   jp->phase().c_str() );
     _g.set_jobsrc(  jp->src().c_str() );
@@ -403,7 +403,7 @@ Job::plan_reduce(void){
 
     _lock.w_lock();
     int nserv = _servers.size();
-    int nstep = section_size();
+    int nstep = _g.section_size();
 
     for(int i=1; i<nstep; i++){
         Step *step = _plan[i];
@@ -412,8 +412,8 @@ Job::plan_reduce(void){
 
         if( i == nstep - 1 )
             ntask = 1;	// final
-        else if( section(i).has_width() )
-            ntask = section(i).width();
+        else if( _g.section(i).has_width() )
+            ntask = _g.section(i).width();
         else
             ntask = nserv * REDUCEFACTOR; // QQQ - MAX( nserv * REDUCEFACTOR, int(prevw * REDUCEDECAY) );
 
@@ -436,7 +436,7 @@ int
 Job::plan_files(void){
 
     _lock.w_lock();
-    int nstep  = section_size();
+    int nstep  = _g.section_size();
     int nserv  = _servers.size();
 
     for(int i=0; i<nstep; i++){

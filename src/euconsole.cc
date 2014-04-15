@@ -27,7 +27,7 @@
 #define MAXBUF		4096
 
 
-EUConsole::EUConsole(const char *type, ACPMRMTaskCreate *g){
+EUConsole::EUConsole(const char *type, const ACPMRMTaskCreate *g){
 
     _udp = 0;
     if( !g->has_console() ) return;

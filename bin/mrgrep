@@ -52,21 +52,16 @@ if( $opt{faster} ){
     my $job = mkgrep();
     print STDERR $job if $opt{debug};
 
-    $mrm = AC::MrQuincy::Client->new( text => $job, israw => 1 );
+    $mrm = AC::MrQuincy::Client->new( 'raw', text => $job );
 
-    # job compiler config
-    %conf = (
-        lang	=> 'raw',
-    );
 }else{
     my $job = mkjob();
     print STDERR $job if $opt{debug};
 
-    $mrm = AC::MrQuincy::Client->new( text => $job );
+    $mrm = AC::MrQuincy::Client->new( 'perl', text => $job );
 
     # job compiler config
     %conf = (
-        lang	=> 'perl',
         libdir	=> ($opt{devlibs} ? "$ENV{HOME}/dev/adcopy/lib" : '/home/adcopy/lib'),
         runinit	=> 1,
     );

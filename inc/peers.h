@@ -86,7 +86,7 @@ public:
 
 protected:
     PeerDB()	{};
-    ~PeerDB()	{};
+    ~PeerDB();
     DISALLOW_COPY(PeerDB);
 
     friend void peerdb_init(void);

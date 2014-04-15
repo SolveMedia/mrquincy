@@ -205,7 +205,7 @@ TaskToDo::abort(void){
 
     if( _state != JOB_TODO_STATE_RUNNING ) return;
 
-    req.set_jobid( _job->jobid().c_str() );
+    req.set_jobid( _job->_id );
     req.set_taskid( _xid.c_str() );
 
     // udp fire+forget
@@ -225,7 +225,7 @@ TaskToDo::cancel(void){
 
     if( _state != JOB_TODO_STATE_RUNNING ) return;
 
-    req.set_jobid( _job->jobid().c_str() );
+    req.set_jobid( _job->_id );
     req.set_taskid( _xid.c_str() );
 
     make_request( _job->_servers[_serveridx], PHMT_MR_TASKABORT, &req, IO_TIMEOUT );
@@ -289,8 +289,8 @@ XferToDo::XferToDo(Job *j, const string *name, int src, int dst){
     _tries       = 0;
     _delay_until = 0;
 
-    _g.set_jobid(   j->jobid().c_str() );
-    _g.set_console( j->console().c_str() );
+    _g.set_jobid(   j->_id );
+    _g.set_console( j->_g.console().c_str() );
     _g.set_master(  myipandport.c_str() );
     _g.set_copyid(  _xid.c_str() );
     _g.set_filename( name->c_str() );

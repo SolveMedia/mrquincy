@@ -26,6 +26,8 @@ public:
     string		_filename;
 
     Delete(const string *);
+
+    DISALLOW_COPY(Delete);
 };
 
 class Server : public NetAddr {
@@ -39,6 +41,8 @@ public:
 
     Server(){ _isup = 1; _n_task_running = _n_xfer_running = _n_xfer_peering = _n_dele_running = 0; }
     ~Server();
+
+    DISALLOW_COPY(Server);
 };
 
 #define JOB_TODO_STATE_NOTREADY 0
@@ -59,6 +63,7 @@ protected:
     string		_status;
     int			_progress;
 
+    ToDo()		{ }
     int			update(const string*, int, int);
     void		pending(void){ _state = JOB_TODO_STATE_PENDING; }
 
@@ -75,6 +80,7 @@ protected:
 public:
     virtual int		start(void) = 0;
     friend class Job;
+    DISALLOW_COPY(ToDo);
 };
 
 class TaskToDo : public ToDo {
@@ -102,6 +108,7 @@ public:
 
     friend class Job;
     friend class Step;
+    DISALLOW_COPY(TaskToDo);
 };
 
 class XferToDo : public ToDo {
@@ -120,6 +127,7 @@ public:
     XferToDo(Job*, const string *, int, int);
 
     friend class Job;
+    DISALLOW_COPY(XferToDo);
 };
 
 class Step {
@@ -140,6 +148,7 @@ class Step {
 
     friend class Job;
     friend class XferToDo;
+    DISALLOW_COPY(Step);
 };
 
 
@@ -152,9 +161,10 @@ class Step {
 #define JOB_STATE_CLEANUP	4
 #define JOB_STATE_DEAD		5
 
-class Job : public ACPMRMJobCreate {
-
+class Job {
+    ACPMRMJobCreate	_g;
     RWLock		_lock;
+    const char 		*_id;
     hrtime_t        	_created;
     long long		_totalmapsize;
     bool		_want_abort;
@@ -213,6 +223,7 @@ class Job : public ACPMRMJobCreate {
 public:
     Job();
     ~Job();
+    int			init(int, const char *, int);
     void		run(void);
     void		kvetch(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// errors
     void		inform(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// diags
@@ -225,6 +236,7 @@ public:
     friend class ToDo;
     friend class TaskToDo;
     friend class XferToDo;
+    DISALLOW_COPY(Job);
 };
 
 

@@ -74,21 +74,39 @@ job_nrunning(void){
     return jobq.nrunning();
 }
 
-static void
-adjust_console(int fd, Job *req){
+int
+Job::init(int fd, const char *buf, int len){
 
-    if( ! req->has_console() ) return;
-    if( req->console().c_str()[0] != ':' ) return;
+    // parse protobuf
+    _g.ParsePartialFromArray( buf, len );
+    DEBUG("l=%d, %s", len, _g.ShortDebugString().c_str());
 
-    // convert :port -> inet:port
-    sockaddr_in sa;
-    socklen_t sal = sizeof(sa);
-    getpeername(fd, (sockaddr*)&sa, &sal);
+    if( ! _g.IsInitialized() ){
+        DEBUG("invalid request. missing required fields");
+        return 0;
+    }
 
-    string cons = inet_ntoa(sa.sin_addr);
-    cons.append( req->console().c_str() );
-    req->set_console( cons.c_str() );
-    DEBUG("console: %s", cons.c_str());
+    // for quick access
+    _id = _g.jobid().c_str();
+
+    VERBOSE("new job: %s - %s", _id, _g.traceinfo().c_str());
+
+    // adjust console
+    if( _g.has_console() && _g.console().c_str()[0] == ':' ){
+
+        // find peer ip addr
+        sockaddr_in sa;
+        socklen_t sal = sizeof(sa);
+        getpeername(fd, (sockaddr*)&sa, &sal);
+
+        // convert :port -> inet:port
+        string cons = inet_ntoa(sa.sin_addr);
+        cons.append( _g.console().c_str() );
+        _g.set_console( cons.c_str() );
+        DEBUG("console: %s", cons.c_str());
+    }
+
+    return 1;
 }
 
 
@@ -100,17 +118,11 @@ handle_job(NTD *ntd){
     Job *req = new Job;
 
     // parse request
-    req->ParsePartialFromArray( ntd->in_data(), phi->data_length );
-    DEBUG("l=%d, %s", phi->data_length, req->ShortDebugString().c_str());
-
-    if( ! req->IsInitialized() ){
-        DEBUG("invalid request. missing required fields");
+    int ok = req->init(ntd->fd, ntd->in_data(), phi->data_length );
+    if( !ok ){
+        delete req;
         return 0;
     }
-
-    adjust_console( ntd->fd, req );
-
-    VERBOSE("new job: %s - %s", req->jobid().c_str(), req->traceinfo().c_str());
 
     jobq.start_or_queue( (void*)req, MAXJOB );
 
@@ -209,7 +221,7 @@ QueuedJob::update(ACPMRMActionStatus *g){
     for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
         void *g = *it;
         Job *j = (Job*)g;
-        if( !id->compare( j->jobid() ) ){
+        if( !id->compare( j->_id ) ){
             found = j;
             break;
         }
@@ -241,7 +253,7 @@ QueuedJob::shutdown(void){
     for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
         void *g = *it;
         Job *j = (Job*)g;
-        VERBOSE("aborting job %s", j->jobid().c_str());
+        VERBOSE("aborting job %s", j->_id);
         j->abort();
     }
     _running.clear();
@@ -264,7 +276,7 @@ QueuedJob::abort(const string *id){
     for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
         void *g = *it;
         Job *j = (Job*)g;
-        if( !id->compare( j->jobid() ) ){
+        if( !id->compare( j->_id ) ){
             found = j;
             break;
         }
@@ -276,7 +288,7 @@ QueuedJob::abort(const string *id){
         for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
             void *g = *it;
             Job *j = (Job*)g;
-            if( !id->compare( j->jobid() ) ){
+            if( !id->compare( j->_id ) ){
                 found = j;
                 break;
             }
@@ -290,11 +302,11 @@ QueuedJob::abort(const string *id){
 
 bool
 QueuedJob::same(void *xa, void *xb){
-    Job *ga = (Job*)xa;
-    Job *gb = (Job*)xb;
+    Job *ja = (Job*)xa;
+    Job *jb = (Job*)xb;
 
-    const string *id = & ga->jobid();
-    return id->compare( gb->jobid() ) ? 0 : 1;
+    const string *id = & ja->_g.jobid();
+    return id->compare( jb->_g.jobid() ) ? 0 : 1;
 }
 
 // running job gets its very own thread!
@@ -337,11 +349,11 @@ Job::json(const char *st, string *dst){
     if( _state == JOB_STATE_QUEUED   ) ph = "queued";
 
 
-    b << "{\"jobid\": \""       << jobid().c_str()      << "\", "
-      << "\"state\": \""        << st                   << "\", "
-      << "\"phase\": \""        << ph           	<< "\", "
-      << "\"traceinfo\": \""    << traceinfo().c_str()  << "\", "
-      << "\"options\": "        << options().c_str()    << ", "		// options is json
+    b << "{\"jobid\": \""       << _id                    << "\", "
+      << "\"state\": \""        << st                     << "\", "
+      << "\"phase\": \""        << ph           	  << "\", "
+      << "\"traceinfo\": \""    << _g.traceinfo().c_str() << "\", "
+      << "\"options\": "        << _g.options().c_str()   << ", "		// options is json
       << "\"start_time\": "     << _created
       << "}";
 
@@ -363,15 +375,15 @@ Job::find_todo_x(const string *xid) const{
 void
 Job::send_eu_msg_x(const char *type, const char *msg) const{
 
-    if( has_console() ){
+    if( _g.has_console() ){
         ACPMRMDiagMsg gm;
 
-        gm.set_jobid( jobid().c_str() );
+        gm.set_jobid( _id );
         gm.set_server_id( myserver_id.c_str() );
         gm.set_type( type );
         gm.set_msg(  msg );
 
-        toss_request( udp4_fd, console().c_str(), PHMT_MR_DIAGMSG, &gm );
+        toss_request( udp4_fd, _g.console().c_str(), PHMT_MR_DIAGMSG, &gm );
     }
 }
 
@@ -391,7 +403,7 @@ Job::inform(const char *msg, const char *arg1, const char *arg2, const char *arg
     char buf[1024];
 
     snprintf(buf, sizeof(buf), msg, arg1, arg2, arg3, arg4);
-    DEBUG("job: %s %s", jobid().c_str(), buf);
+    DEBUG("job: %s %s", _id, buf);
 
     send_eu_msg_x("debug", buf);
 }
@@ -401,7 +413,7 @@ Job::report(const char *msg, const char *arg1, const char *arg2, const char *arg
     char buf[1024];
 
     snprintf(buf, sizeof(buf), msg, arg1, arg2, arg3, arg4);
-    VERBOSE("job: %s %s", jobid().c_str(), buf);
+    VERBOSE("job: %s %s", _id, buf);
 
     send_eu_msg_x("report", buf);
 }
@@ -583,7 +595,7 @@ Job::~Job(){
         sleep(1);
     }
 
-    VERBOSE("destroy job %s", jobid().c_str());
+    DEBUG("destroy job %s", _id );
 
     int nstep = _plan.size();
     for(int i=0; i<nstep; i++){

@@ -34,6 +34,8 @@ sub new {
         # file | text
     }, $class;
 
+    $me->{nolineinfo} = 1 if $me->{lang} eq 'raw'; # ...
+
     if( $me->{file} ){
         open(my $fd, $me->{file}) || $me->_die("cannot open file: $!");
         local $/ = undef;
@@ -113,7 +115,7 @@ sub _parse {
 sub _lineno_info {
     my $me  = shift;
 
-    return '' if $me->{israw};
+    return '' if $me->{nolineinfo};
 
     # should have the number of the _next_ line
     return sprintf "#line %d $me->{file}\n", $me->{_lineno} + 1;

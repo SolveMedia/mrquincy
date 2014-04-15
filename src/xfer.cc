@@ -29,11 +29,12 @@ using std::ostringstream;
 #define MAXXFER		5	// RSN - config
 #define TIMEOUT		15
 
-class Xfer : public ACPMRMFileXfer {
+class Xfer {
 public:
-    hrtime_t	_created;
-    const char *_status;
-    int		_filesize;
+    ACPMRMFileXfer  _g;
+    hrtime_t        _created;
+    const char     *_status;
+    int             _filesize;
 
     Xfer() { _status = "PENDING"; _created = lr_now(); _filesize = 0; }
 };
@@ -72,10 +73,10 @@ handle_xfer(NTD *ntd){
     Xfer  *req = new Xfer;
 
     // parse request
-    req->ParsePartialFromArray( ntd->in_data(), phi->data_length );
-    DEBUG("l=%d, %s", phi->data_length, req->ShortDebugString().c_str());
+    req->_g.ParsePartialFromArray( ntd->in_data(), phi->data_length );
+    DEBUG("l=%d, %s", phi->data_length, req->_g.ShortDebugString().c_str());
 
-    if( ! req->IsInitialized() ){
+    if( ! req->_g.IsInitialized() ){
         DEBUG("invalid request. missing required fields");
         return 0;
     }
@@ -98,9 +99,9 @@ QueuedXfer::json1(const char *st, void *x, string *dst){
 
     ostringstream b;
 
-    b << "{\"jobid\": \""       << g->jobid()   << "\", "
-      << "\"copyid\": \""       << g->copyid()  << "\", "
-      << "\"status\": \""       << st           << "\", "
+    b << "{\"jobid\": \""       << g->_g.jobid()   << "\", "
+      << "\"copyid\": \""       << g->_g.copyid()  << "\", "
+      << "\"status\": \""       << st              << "\", "
       << "\"start_time\": "     << g->_created
       << "}";
 
@@ -112,8 +113,8 @@ QueuedXfer::same(void *xa, void *xb){
     Xfer *ga = (Xfer*)xa;
     Xfer *gb = (Xfer*)xb;
 
-    const string *id = & ga->copyid();
-    return id->compare( gb->copyid() ) ? 0 : 1;
+    const string *id = & ga->_g.copyid();
+    return id->compare( gb->_g.copyid() ) ? 0 : 1;
 }
 
 void
@@ -128,13 +129,13 @@ QueuedXfer::send_status(void *xg){
     Xfer *g = (Xfer*)xg;
     ACPMRMActionStatus st;
 
-    if( !g->has_master() ) return;
+    if( !g->_g.has_master() ) return;
 
-    st.set_jobid( g->jobid().c_str() );
-    st.set_xid( g->copyid().c_str() );
+    st.set_jobid( g->_g.jobid().c_str() );
+    st.set_xid( g->_g.copyid().c_str() );
     st.set_phase( g->_status );
 
-    toss_request( udp4_fd, g->master().c_str(), PHMT_MR_XFERSTATUS, &st);
+    toss_request( udp4_fd, g->_g.master().c_str(), PHMT_MR_XFERSTATUS, &st);
 }
 
 // the final status goes over tcp
@@ -142,16 +143,16 @@ static void
 send_final_status(const Xfer *g){
     ACPMRMActionStatus st;
 
-    if( !g->has_master() || g->master().empty() ) return;
+    if( !g->_g.has_master() || g->_g.master().empty() ) return;
 
-    st.set_jobid( g->jobid().c_str() );
-    st.set_xid( g->copyid().c_str() );
+    st.set_jobid( g->_g.jobid().c_str() );
+    st.set_xid( g->_g.copyid().c_str() );
     st.set_phase( g->_status );
     st.set_final_amount( g->_filesize );
 
-    DEBUG("sending final status to %s", g->master().c_str());
+    DEBUG("sending final status to %s", g->_g.master().c_str());
 
-    make_request(g->master().c_str(), PHMT_MR_TASKSTATUS, &st, TIMEOUT );
+    make_request(g->_g.master().c_str(), PHMT_MR_TASKSTATUS, &st, TIMEOUT );
 }
 
 
@@ -164,10 +165,10 @@ do_xfer(void *x){
     xferq.send_status(x);
 
     // try each location, several times
-    int tries = 2 * g->location_size() + 1;
+    int tries = 2 * g->_g.location_size() + 1;
 
     for(int i=0; i<tries; i++){
-        ok = try_xfer(g, i % g->location_size());
+        ok = try_xfer(g, i % g->_g.location_size());
         if( ok ) break;
         sleep(5);	// maybe the problem will clear
     }
@@ -195,10 +196,10 @@ try_xfer(Xfer *g, int l){
     ACPScriblRequest req;
     ACPScriblReply   res;
 
-    DEBUG("trying xfer %s", g->jobid().c_str());
+    DEBUG("trying xfer %s", g->_g.jobid().c_str());
 
     // find addr of remote
-    const string *location = & g->location(l);
+    const string *location = & g->_g.location(l);
     NetAddr *na = peerdb->find_addr(location->c_str() );
 
     if( !na ){
@@ -209,7 +210,7 @@ try_xfer(Xfer *g, int l){
     }
 
     // build get req
-    req.set_filename( g->filename().c_str() );
+    req.set_filename( g->_g.filename().c_str() );
 
     // connect
     int fd = tcp_connect(na, TIMEOUT);
@@ -247,10 +248,10 @@ try_xfer(Xfer *g, int l){
 
     // stream to disk
     string *dstfile;
-    if( g->has_dstname() )
-        dstfile = g->mutable_dstname();
+    if( g->_g.has_dstname() )
+        dstfile = g->_g.mutable_dstname();
     else
-        dstfile = g->mutable_filename();
+        dstfile = g->_g.mutable_filename();
 
     s = scriblr_save_file(fd, dstfile, phi->content_length, res.mutable_hash_sha1(), TIMEOUT );
     close(fd);

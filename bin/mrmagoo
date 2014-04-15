@@ -62,13 +62,12 @@ if( keys %conf ){
 }
 
 # parse the job
-my $mrm = AC::MrQuincy::Client->new( file => $ARGV[0] );
+my $mrm = AC::MrQuincy::Client->new( 'perl', file => $ARGV[0] );
 $mrm->set_debug(1) if $opt{debug};
 $mrm->set_master(  $opt{master} )  if $opt{master};
 
 # job compiler config
 my %conf = (
-    lang	=> 'perl',
     libdir	=> ($opt{devlibs} ? "$ENV{HOME}/dev/adcopy/lib" : '/home/adcopy/lib'),
     runinit	=> (!$opt{check}),
    );
@@ -80,6 +79,8 @@ $concf{report}   = sub{ print STDERR "@_\n" } if $opt{report};
 $concf{progress} = sub{ print STDERR "@_\n" } if $opt{progress};
 
 $mrm->compile( \%opt, %conf );
+
+print STDERR dumper($mrm->{job}), "\n" if $opt{debug};
 
 if( $opt{check} ){
     # NB. the compiler already checked

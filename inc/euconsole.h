@@ -19,7 +19,7 @@ class EUConsole {
 
     void _flush(void);
 public:
-    EUConsole(const char *, ACPMRMTaskCreate*);
+    EUConsole(const char *, const ACPMRMTaskCreate*);
     ~EUConsole();
 
     void send(const char *m, int l);

@@ -225,6 +225,8 @@ spawn(const char *prog, const ACPMRMTaskCreate *g, int fin, int fout, int ferr, 
     setregid(65535, 65535);
     setreuid(65535, 65535);
 
+    signal( SIGPIPE, SIG_DFL );
+
     execv(prog, (char**)argv);
     VERBOSE("exec failed %s: %s", prog, strerror(errno));
     _fail("exec failed");

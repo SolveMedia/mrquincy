@@ -106,7 +106,7 @@ BufferedInput::read(MapOutSet *out){
 
 /****************************************************************/
 
-MapOutSet::MapOutSet(ACPMRMTaskCreate *g){
+MapOutSet::MapOutSet(const ACPMRMTaskCreate *g){
 
     _nfile = g->outfile_size();
     _file.reserve( _nfile );

@@ -29,25 +29,25 @@ sub compile {
     # merge config
     $me->add_config( $parse->{content}{config} );
 
-    if( $me->{lang} eq 'perl' ){
+    if( $parse->{lang} eq 'perl' ){
         return compile_perl( $me, $parse );
     }
-    if( $me->{lang} eq 'raw' ){
+    if( $parse->{lang} eq 'raw' ){
         return compile_raw( $me, $parse );
     }
-    if( $me->{lang} eq 'ruby' ){
+    if( $parse->{lang} eq 'ruby' ){
         return compile_ruby( $me, $parse );
     }
-    if( $me->{lang} eq 'python' ){
+    if( $parse->{lang} eq 'python' ){
         return compile_python( $me, $parse );
     }
-    if( $me->{lang} eq 'bash' ){
+    if( $parse->{lang} eq 'bash' ){
         return compile_bash( $me, $parse );
     }
 
     # ...
 
-    die "unknown lang '$me->{lang}'. cannot compile\n";
+    die "unknown lang '$parse->{lang}'. cannot compile\n";
 }
 
 sub add_config {

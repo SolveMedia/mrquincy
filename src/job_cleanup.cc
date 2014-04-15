@@ -87,7 +87,7 @@ Job::do_deletes(void){
     _lock.r_lock();
     int nserv = _servers.size();
     string jobdir = "mrtmp/j_";	// see also: job_plan.cc
-    jobdir.append( jobid().c_str() );
+    jobdir.append( _id );
     _lock.r_unlock();
 
     for(int idx=0; idx<nserv; idx++){
