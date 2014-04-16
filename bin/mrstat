@@ -1,0 +1,91 @@
+#!/usr/local/bin/perl
+# -*- perl -*-
+
+# Copyright (c) 2011 by Jeff Weisberg
+# Author: Jeff Weisberg <jaw @ tcp4me.com>
+# Created: 2011-Mar-10 13:03 (EST)
+# Function: show all running jobs + tasks
+
+
+our %opt;
+use Getopt::Std;
+BEGIN {
+    getopts('Ddv', \%opt) || die "usage...\n";
+    # -d    enable all debugging
+    my $devlib = $ENV{ACDEVLIB} || "$ENV{HOME}/dev/adcopy/lib";
+    unshift @INC, ($opt{D} ? $devlib : '/home/adcopy/lib');
+}
+
+use AC::Puzzles;
+use AC::Misc;
+use AC::Dumper;
+use AC::ISOTime;
+use LWP::Simple;
+use JSON;
+use strict;
+
+
+# get list of mrm serevrs
+my @mrm = get_ac_servers( 'prod', 'mrquincy' );
+
+for my $s (sort {$a->{id} cmp $b->{id}} @mrm){
+    my $url = "http://$s->{addr}:$s->{port}/json";
+    my $r = get($url);
+    my $d = decode_json($r);
+
+    next unless $d;
+    next unless @{$d->{task}} + @{$d->{job}} + @{$d->{xfer}};
+
+    print "$s->{id}\n";
+
+    for my $j ( @{$d->{job}} ){
+        my $jid = $j->{jobid};
+        my $age = age($^T - $j->{start_time});
+
+        printf "\tjob  $jid\t$age  %-8s %s\n", $j->{phase}, $j->{traceinfo};
+
+        if( $opt{v} ){
+
+            my $o = $j->{options};
+            my $st  = isotime($o->{start});
+            my $end = isotime($o->{end});
+            print "\t\t\t\t[$st - $end]\n";
+        }
+    }
+
+    for my $t ( @{$d->{task}} ){
+        my $tid = $t->{taskid};
+        my $age = age($^T - $t->{start_time});
+        print "\ttask $tid\t$age  $t->{status}\tjob: $t->{jobid} $t->{phase}\n";
+    }
+
+    for my $x ( @{$d->{xfer}} ){
+        my $xid = $x->{copyid};
+        my $age = age($^T - $x->{start_time});
+        print "\txfer $xid\t$age  $x->{status}\tjob: $x->{jobid} $x->{info}\n";
+    }
+
+    print "\n";
+}
+
+
+sub age {
+    my $t = shift;
+
+    my $sec = $t % 60; 	$t = int( $t / 60 );
+    my $min = $t % 60;	$t = int( $t / 60 );
+    my $hrs = $t % 24;  $t = int( $t / 24 );
+    my $day = $t;
+
+    my $txt;
+    $txt .= "${day}d+" if $day;
+    $txt .= sprintf '%02d:%02d:%02d', $hrs, $min, $sec;
+    return $txt;
+}
+
+
+sub debug {
+    return unless $opt{d};
+    print STDERR "@_\n";
+}
+
