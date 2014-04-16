@@ -278,6 +278,13 @@ TaskToDo::TaskToDo(Job *j, int n){
     _g.set_console( j->_g.console().c_str() );
     _g.set_master(  myipandport.c_str() );
 
+    if( j->_g.has_priority() ){
+        _g.set_priority( j->_g.priority() );
+    }else{
+        // by default, order (roughly) by job creation time
+        _g.set_priority( lr_now() >> 8 );
+    }
+
     const ACPMRMJobPhase *jp = &j->_g.section(n);
 
     _g.set_phase(   jp->phase().c_str() );
@@ -410,7 +417,7 @@ Job::plan_reduce(void){
         int prevw  = _plan[i-1]->_tasks.size();
         int ntask;
 
-        if( i == nstep - 1 )
+        if( _g.section(i).phase() == "final" )
             ntask = 1;	// final
         else if( _g.section(i).has_width() )
             ntask = _g.section(i).width();
