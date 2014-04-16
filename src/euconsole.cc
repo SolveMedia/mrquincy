@@ -59,6 +59,8 @@ void
 EUConsole::send(const char *msg, int len){
 
     if( !_udp ) return;
+    // discard single NULL (keepalive)
+    if( len == 1 && msg[0] == 0 ) return;
 
     _buf.append(msg, len);
     if( _buf.size() < MAXBUF ) return;

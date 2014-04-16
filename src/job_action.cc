@@ -49,6 +49,12 @@ ToDo::retry_or_abort(bool did_timeout){
     if( ++_tries >= TODOMAXFAIL ){
         _state = JOB_TODO_STATE_FINISHED;
         _job->abort();
+        return;
+    }
+
+    if( _job->_n_fails > _job->_servers.size() / 2 ){
+        _job->abort();
+        return;
     }
 
     // retry

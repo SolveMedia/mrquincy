@@ -299,6 +299,7 @@ do_task(void *x){
         ok = try_task(t);
         t->_runtime = lr_now() - start;
         if( ok ) break;
+        if( t->_runtime >= TASKTIMEOUT/2 ) break;
         sleep(5);
     }
 

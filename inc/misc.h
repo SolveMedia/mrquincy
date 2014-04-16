@@ -40,4 +40,8 @@ inline int probability(float p){ return random() < p * 0x7FFFFFFF; }
 #define ATOMIC_SETPTR(a,b) 	((sizeof(void*) == 8) ? ATOMIC_SET64(a, (uint64_t)b) : ATOMIC_SET32(a, (uint32_t)b))
 
 
+extern int current_load(void);
+
+
+
 #endif // __mrquincy_misc_h_

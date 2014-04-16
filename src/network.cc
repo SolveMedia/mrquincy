@@ -853,11 +853,8 @@ handle_hbreq(NTD* ntd){
     protocol_header *pho = (protocol_header*) ntd->gpbuf_out;
     ACPHeartBeat g;
     struct statvfs vfs;
-    double load[3];
 
     if( !(phi->flags & PHFLAG_WANTREPLY) ) return 0;
-
-    getloadavg( load, 3 );
 
     if( runmode.mode() != RUN_LOLA_RUN ){
 	g.set_status_code( 500 );
@@ -865,7 +862,7 @@ handle_hbreq(NTD* ntd){
     }else{
 	g.set_status_code( 200 );
 	g.set_status_message( "Awesome" );
-	g.set_sort_metric( (int)(load[1] * 1000) );
+        g.set_sort_metric( current_load() );
     }
 
     g.set_subsystem( MYNAME );

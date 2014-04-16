@@ -61,6 +61,11 @@ sub filter {
     return 1;
 }
 
+sub progress {
+    my $me = shift;
+    print STDDAT "\n";	# mapio will drop the empty record
+}
+
 sub output {
     my $me = shift;
     print STDDAT encode_json( \@_ ) , "\n";

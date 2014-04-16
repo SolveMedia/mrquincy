@@ -83,8 +83,7 @@ about_myself(ACPMRMStatus *g){
     g->set_lastup( now );
     g->set_boottime( starttime );
 
-    // RSN - load ave + jobs
-    g->set_sort_metric( (int)(load[1] * 1000) );
+    g->set_sort_metric( current_load() );
 
     // determine disk space
     if( ! statvfs( config->basedir.c_str(), &vfs ) ){

@@ -23,8 +23,10 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/loadavg.h>
 
 extern void base64_encode(const char *, int, char *, int);
+extern int job_nrunning(void);
 
 static Mutex lock;
 static int seqno = 42;
@@ -70,5 +72,14 @@ hexdump(const char *txt, const uchar *d, int l){
         if( (i%16)==15 && i!=l-1 ) fprintf(stderr, "\n");
     }
     fprintf(stderr, "\n\n");
+}
+
+int
+current_load(void){
+    double load[3];
+
+    getloadavg( load, 3 );
+
+    return (int)(load[1] * 1000) + job_nrunning() * 100 + (config->enable_scriblr ? 0 : 5000);
 }
 
