@@ -37,7 +37,7 @@
 using std::ostringstream;
 
 
-#define MAXTASK		5	// RSN - config
+#define MAXTASK		(config->hw_cpus ? 3 * config->hw_cpus / 2 : 1)
 #define TIMEOUT		15
 #define MAXTRIES	3	// try running task up to this many times
 #define TASKMAXRUN	7200	// RSN - config, task conf
@@ -114,7 +114,7 @@ handle_task(NTD *ntd){
 
     DEBUG("recvd task request");
 
-    taskq.start_or_queue( (void*)req, MAXTASK );
+    taskq.start_or_queue( (void*)req, 0, MAXTASK );
 
     return reply_ok(ntd);
 }
@@ -147,10 +147,11 @@ QueuedTask::shutdown(void){
 
     _lock.w_lock();
 
-    for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        void *g = *it;
-        Task *t = (Task*)g;
+    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        QueueElem *e = *it;
+        Task *t = (Task*)e->_elem;
         delete t;
+        delete e;
     }
     _queue.clear();
 
@@ -168,7 +169,7 @@ QueuedTask::shutdown(void){
 void
 QueuedTask::abort(const string *id){
 
-    Task *found = 0;
+    QueueElem *found = 0;
     int killpid = 0;
 
     // find task
@@ -177,23 +178,24 @@ QueuedTask::abort(const string *id){
 
     _lock.w_lock();
 
-    for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        void *g = *it;
-        Task *t = (Task*)g;
+    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        QueueElem *e = *it;
+        Task *t = (Task*)e->_elem;
         if( !id->compare( t->_g.taskid() ) ){
-            found = t;
+            found = e;
             break;
         }
     }
     if( found ){
-        _queue.remove( (void*)found);
+        _queue.remove(found);
+        Task *t = (Task*)found->_elem;
         delete found;
+        delete t;
     }else{
         for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
             void *g = *it;
             Task *t = (Task*)g;
             if( !id->compare( t->_g.taskid() ) ){
-                found = t;
                 killpid  = t->_pid;
                 break;
             }

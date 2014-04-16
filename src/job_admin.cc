@@ -40,6 +40,9 @@ using std::ostringstream;
 extern int scriblr_delete_file(const string *);
 
 
+#define MAXJOB		(config->hw_cpus ? config->hw_cpus : 1)		// maximum number of running jobs
+
+
 // keep a queue of jobs
 // only so many run at a time, the rest stay queued
 
@@ -124,7 +127,10 @@ handle_job(NTD *ntd){
         return 0;
     }
 
-    jobq.start_or_queue( (void*)req, MAXJOB );
+    int prio = req->priority();
+    if( !prio ) prio = lr_now() >> 8;
+
+    jobq.start_or_queue( (void*)req, prio, MAXJOB );
 
     return reply_ok(ntd);
 }
@@ -243,10 +249,11 @@ QueuedJob::shutdown(void){
 
     _lock.w_lock();
 
-    for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        void *g = *it;
-        Job *j = (Job*)g;
+    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        QueueElem *e = *it;
+        Job *j = (Job*)e->_elem;
         delete j;
+        delete e;
     }
     _queue.clear();
 
@@ -264,7 +271,7 @@ QueuedJob::shutdown(void){
 void
 QueuedJob::abort(const string *id){
 
-    Job *found = 0;
+    QueueElem *found = 0;
     int killpid = 0;
 
     // find job
@@ -273,28 +280,31 @@ QueuedJob::abort(const string *id){
 
     _lock.w_lock();
 
-    for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        void *g = *it;
-        Job *j = (Job*)g;
+    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        QueueElem *e = *it;
+        Job *j = (Job*)e->_elem;
         if( !id->compare( j->_id ) ){
-            found = j;
+            found = e;
             break;
         }
     }
     if( found ){
-        _queue.remove((void*)found);
+        _queue.remove(found);
+        Job *j = (Job*)found->_elem;
+        delete j;
         delete found;
     }else{
+        Job *fj = 0;
         for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
             void *g = *it;
             Job *j = (Job*)g;
             if( !id->compare( j->_id ) ){
-                found = j;
+                fj = j;
                 break;
             }
         }
 
-        if(found) found->abort();
+        if( fj ) fj->abort();
     }
 
     _lock.w_unlock();

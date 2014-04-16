@@ -48,6 +48,7 @@ message ACPMRMJobCreate {
         optional string         console         = 5;            // ipaddr:port
         optional string         traceinfo       = 6;
         repeated ACPMRMJobPhase section         = 7;
+        optional int32          priority        = 8;
 }
 
 message ACPMRMJobAbort {
@@ -67,6 +68,7 @@ message ACPMRMTaskCreate {
 
         optional int32          maxrun          = 11;
         optional int32          timeout         = 12;
+        optional int32          priority        = 13;
 }
 
 // task or xfer

@@ -31,22 +31,9 @@ Queued::nrunning(void){
     return n;
 }
 
-void *
-Queued::dequeue(void){
-
-    void *g = 0;
-
-    _lock.w_lock();
-    if( !_queue.empty() ){
-        g = _queue.front();
-        _queue.pop_front();
-    }
-    _lock.w_unlock();
-    return g;
-}
 
 void
-Queued::start_or_queue(void *g, int max){
+Queued::start_or_queue(void *g, int prio, int max){
 
     if( is_dupe(g) ) return;
 
@@ -55,7 +42,16 @@ Queued::start_or_queue(void *g, int max){
     if( _queue.empty() && _running.empty() ) _last_status = lr_now();
 
     if( nrunning() >= max ){
-        _queue.push_back(g);
+        QueueElem *e = new QueueElem(g, prio);
+
+        // insert in priority order
+        list<QueueElem*>::iterator it;
+        for(it=_queue.begin(); it != _queue.end(); it++){
+            QueueElem *c = *it;
+            if( c->_prio > prio ) break;
+        }
+        _queue.insert(it, e);
+
     }else{
         _running.push_back(g);
         start(g);
@@ -68,8 +64,9 @@ Queued::is_dupe(void *g){
     bool dupe = 0;
 
     _lock.r_lock();
-    for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        void *x = *it;
+    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        QueueElem *e = *it;
+        void *x = e->_elem;
         if( same(g, x) ){
             dupe = 1;
             break;
@@ -94,8 +91,9 @@ Queued::json(string *dst){
     dst->append("[");
 
     _lock.r_lock();
-    for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        void *x = *it;
+    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        QueueElem *e = *it;
+        void *x = e->_elem;
         if( n++ ) dst->append(",\n    ");
         json1("queued", x, dst);
     }
@@ -113,7 +111,6 @@ void
 Queued::done(void *g){
 
     _lock.w_lock();
-    _queue.remove(g);
     _running.remove(g);
     _lock.w_unlock();
 }
@@ -126,8 +123,10 @@ Queued::start_more(int max){
         if( _queue.empty() ) break;
         if( _running.size() >= max ) break;
 
-        void *g = _queue.front();
+        QueueElem *e = _queue.front();
+        void *g = e->_elem;
         _queue.pop_front();
+        delete e;
         _running.push_back(g);
         start(g);
     }
@@ -138,8 +137,9 @@ Queued::start_more(int max){
     _last_status = lr_now();
 
     _lock.r_lock();
-    for(list<void*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        void *g = *it;
+    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        QueueElem *e = *it;
+        void *g = e->_elem;
         send_status(g);
     }
     for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){

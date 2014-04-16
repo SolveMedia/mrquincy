@@ -83,7 +83,7 @@ handle_xfer(NTD *ntd){
 
     DEBUG("recvd xfer request");
 
-    xferq.start_or_queue( (void*)req, MAXXFER );
+    xferq.start_or_queue( (void*)req, 0, MAXXFER );
 
     return reply_ok(ntd);
 }

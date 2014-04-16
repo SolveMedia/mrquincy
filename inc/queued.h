@@ -11,16 +11,26 @@
 
 #include "mrmagoo.pb.h"
 
+class QueueElem {
+    int			_prio;
+    void		*_elem;
+
+    QueueElem(void* x, int p){ _prio = p; _elem = x; }
+
+    friend class Queued;
+    friend class QueuedTask;
+    friend class QueuedXfer;
+    friend class QueuedJob;
+};
+
 class Queued {
 protected:
     RWLock		_lock;
-    list<void*>		_queue;
+    list<QueueElem*>	_queue;
     list<void*>		_running;
     hrtime_t		_last_status;
 
 public:
-    void enqueue(void*);
-    void *dequeue(void);
     int  nrunning(void);
     void start_more(int);
     bool is_dupe(void*);
@@ -32,7 +42,7 @@ public:
     void done(void*);
     void json(string *);
 
-    void start_or_queue(void*, int);
+    void start_or_queue(void*, int, int);
 };
 
 class QueuedXfer : public Queued {

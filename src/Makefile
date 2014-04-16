@@ -6,7 +6,7 @@
 
 PROTO = heartbeat.o mrmagoo.o std_ipport.o scrible.o std_reply.o
 
-OBJS =  $(PROTO) lock.o diag.o misc.o config.o daemon.o thread.o network.o \
+OBJS =  lock.o diag.o misc.o config.o daemon.o thread.o network.o \
 	mrquincy.o scriblr.o crypto.o base64.o \
 	kibitz_myself.o kibitz_server.o kibitz_client.o peerdb.o peers.o \
 	euconsole.o protocol.o queued.o xfer.o task.o mapio.o pipeline.o \
@@ -25,8 +25,8 @@ CVT=../../../tools/proto2pl
 
 all: mrquincyd
 
-mrquincyd: $(OBJS)
-	$(CCC) -o mrquincyd $(CFLAGS) $(OBJS) $(LDFLAGS)
+mrquincyd: $(PROTO) $(OBJS)
+	$(CCC) -o mrquincyd $(CFLAGS) $(PROTO) $(OBJS) $(LDFLAGS)
 
 install:
 	-mv ../../../bin/mrquincyd ../../../bin/mrquincyd-
@@ -34,6 +34,9 @@ install:
 
 clean:
 	rm -f $(OBJS) mrquincyd
+
+realclean:
+	rm -f $(OBJS) $(PROTO) mrquincd
 
 %.o:%.proto
 	$(PCC) --proto_path=. --cpp_out=. $<
