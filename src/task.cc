@@ -114,7 +114,7 @@ handle_task(NTD *ntd){
 
     DEBUG("recvd task request");
 
-    taskq.start_or_queue( (void*)req, 0, MAXTASK );
+    taskq.start_or_queue( (void*)req, req->_g.priority(), MAXTASK );
 
     return reply_ok(ntd);
 }

@@ -27,17 +27,17 @@ inline int probability(float p){ return random() < p * 0x7FFFFFFF; }
 #if 0
 #  define ATOMIC_SET32(a,b)		((a)  = (b))
 #  define ATOMIC_SET64(a,b)		((a)  = (b))
+#  define ATOMIC_SETPTR(a,b)		((a)  = (b))
 #  define ATOMIC_ADD32(a,b)		((a) += (b))
 #  define ATOMIC_ADD64(a,b)		((a) += (b))
 #else
 #  define ATOMIC_SET32(a,b)		atomic_swap_32( (uint32_t*)&a, b )
 #  define ATOMIC_SET64(a,b)		atomic_swap_64( (uint64_t*)&a, b )
+#  define ATOMIC_SETPTR(a,b)		atomic_swap_ptr( &a, b)
 #  define ATOMIC_ADD32(a,b)		atomic_add_32(  (uint32_t*)&a, b )
 #  define ATOMIC_ADD64(a,b)		atomic_add_64(  (uint64_t*)&a, b )
 #endif
 
-
-#define ATOMIC_SETPTR(a,b) 	((sizeof(void*) == 8) ? ATOMIC_SET64(a, (uint64_t)b) : ATOMIC_SET32(a, (uint32_t)b))
 
 
 extern int current_load(void);

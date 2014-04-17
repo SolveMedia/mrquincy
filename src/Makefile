@@ -15,11 +15,9 @@ OBJS =  lock.o diag.o misc.o config.o daemon.o thread.o network.o \
 # import site-wide compiler options
 include ../../Makefile.inc
 
-CFLAGS = -g $(FLAGS) -O3 -ffast-math -pthreads -I. -I`pwd`/../inc  -I$(LOCALDIR)/include
-#CFLAGS = -g -O3  -ffast-math -pthreads -I. -I`pwd`/../inc  -I$(LOCALDIR)/include
+CFLAGS = -g $(FLAGS) -O3 -ffast-math -pthreads -I. -I`pwd`/../inc  -I$(LOCALDIR)/include -I/usr/local/include -I/usr/sfw/include
 CCFLAGS=$(CFLAGS)
-LDFLAGS = -L$(LOCALDIR)/lib  -lprotobuf -lpthread -lrt -lsocket -lnsl -lmtmalloc -lgen -lssl -lcrypto -lsasl -lz -lsendfile
-#LDFLAGS = -L/usr/local/lib  -lprotobuf -lpthread -lrt -lsocket -lnsl -lmtmalloc -lgen -lssl -lcrypto -lsasl -lz -lsendfile
+LDFLAGS = -L$(LOCALDIR)/lib -L/usr/sfw/lib/amd64 -lprotobuf -lpthread -lrt -lsocket -lnsl -lmtmalloc -lgen -lssl -lcrypto -lsasl -lz -lsendfile
 PCC=protoc
 CVT=../../../tools/proto2pl
 

@@ -22,6 +22,7 @@
 #include <string.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 
 struct Config *config = 0;
 

@@ -23,6 +23,8 @@
 #include "mrmagoo.pb.h"
 #include "std_reply.pb.h"
 
+#include <unistd.h>
+
 #define MAXFILES	50
 #define TIMEOUT		30
 

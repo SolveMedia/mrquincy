@@ -52,6 +52,7 @@ static int handle_hbreq(NTD*);
 static int report_status(NTD*);
 static int report_peers(NTD*);
 static int report_json(NTD*);
+static int report_load(NTD*);
 
 extern void install_handler(int, void(*)(int));
 extern int scriblr_put(NTD*);
@@ -112,13 +113,13 @@ static struct {
 };
 
 static struct {
-    char *url;
+    const char *url;
     int (*fnc)(NTD *);
 } http_handler[] = {
-    { "/status", report_status },
-    { "/peers",  report_peers  },
-    { "/json",   report_json },
-
+    { "/status",  report_status },
+    { "/peers",   report_peers  },
+    { "/json",    report_json   },
+    { "/loadave", report_load   },
 };
 
 
@@ -498,7 +499,7 @@ read_proto(NTD *ntd, int reqp, int to){
 
 static void *
 network_tcp_read_req(void* xfd){
-    int fd = (int)xfd;
+    int fd = (int)(intptr_t)xfd;
     NTD ntd;
 
     ntd.fd = fd;
@@ -549,7 +550,7 @@ network_tcp4(void *notused){
 
         // QQQ - new thread per connection or thread pool?
         // start_thread(network_tcp_read_req, (void*)nfd);
-        network_tcp_read_req( (void*)nfd);
+        network_tcp_read_req( (void*)(intptr_t)nfd);
 
     }
 
@@ -780,6 +781,12 @@ static int
 report_status(NTD *ntd){
     return snprintf(ntd->gpbuf_out, ntd->out_size, "OK\n");
 }
+
+static int
+report_load(NTD *ntd){
+    return snprintf(ntd->gpbuf_out, ntd->out_size, "loadave: %f\n", current_load() / 1000 );
+}
+
 
 static int
 report_peers(NTD *ntd){

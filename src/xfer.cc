@@ -23,6 +23,8 @@
 #include "scrible.pb.h"
 #include "std_reply.pb.h"
 
+#include <unistd.h>
+
 #include <sstream>
 using std::ostringstream;
 

@@ -20,6 +20,7 @@
 #include "mrmagoo.pb.h"
 
 #include <strings.h>
+#include <unistd.h>
 
 
 #define TIMEOUT		15
