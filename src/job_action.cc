@@ -307,6 +307,9 @@ XferToDo::XferToDo(Job *j, const string *name, int src, int dst){
 void
 TaskToDo::create_xfers(void){
 
+    // files from last step can stay where they are
+    if( _job->_stepno == _job->_plan.size() - 1 ) return;
+
     // for all outfiles
     // new Xfer -> job pend
 

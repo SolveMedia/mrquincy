@@ -167,7 +167,9 @@ sub get_file_list {
     my $tmax  = $config->{end};
     my $tmin  = $config->{start};
     my $start = isotime($tmin);
+    my $end   = isotime($tmax+24*3600);
     $start =~ s/^(\d+)T(\d+).*/$1$2/;	# 20091109T123456... => 20091109123456
+    $end   =~ s/^(\d+)T(\d+).*/$1$2/;
 
     # NB: keys in the yenta logfile map are of the form: 20100126150139_eqaB5uSerdeddsOw
 
@@ -188,9 +190,10 @@ sub get_file_list {
         #debug("file: $_");
         my $d = $yenta->get($_);
         $d = $d ? decode_json($d) : {};
+        $d->{key} = $_;
         $d->{location} = [ (split /\s+/, $d->{location}) ];
         $d;
-    } $yenta->getrange($start, undef);
+    } $yenta->getrange($start, $end);
 
     debug("found " .scalar(@files)." files");
     return \@files;
