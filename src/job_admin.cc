@@ -403,7 +403,7 @@ Job::kvetch(const char *msg, const char *arg1, const char *arg2, const char *arg
     char buf[1024];
 
     snprintf(buf, sizeof(buf), msg, arg1, arg2, arg3, arg4);
-    VERBOSE("%s", buf);
+    VERBOSE("job: %s %s", _id, buf);
 
     send_eu_msg_x("error", buf);
 }
@@ -475,10 +475,7 @@ Job::log_progress(bool rp){
           << ")";
     }
 
-    if(rp)
-        report(b.str().c_str());
-    else
-        send_eu_msg_x("progress", b.str().c_str());
+    send_eu_msg_x("progress", b.str().c_str());
 
     _lock.r_unlock();
 }
@@ -516,9 +513,10 @@ Job::report_final_stats(void){
     }
 
     ostringstream b;
-        b << "summary "
+        b << "summary"
           << " input "         << _totalmapsize / 1000000 << " MB(gz)"
           << ", task "         << _n_tasks_run
+          << ", failed "       << _n_fails
           << ", xfer "         << _n_xfers_run
           << ", dele "         << _n_deleted	<< "; ";
 
@@ -528,11 +526,9 @@ Job::report_final_stats(void){
         b << " wall; effcy "   << efficency_x()
             ;
 
-
     _lock.r_unlock();
 
-    send_eu_msg_x("report", b.str().c_str());
-
+    report("%s", b.str().c_str());
 }
 
 void

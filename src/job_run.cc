@@ -50,8 +50,11 @@ Job::Job(){
 
 void
 Job::abort(void){
+
+    if( !_want_abort )
+        kvetch("job aborted");
+
     _want_abort = 1;
-    DEBUG("abort requested");
 }
 
 void
