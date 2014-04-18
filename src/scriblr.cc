@@ -112,7 +112,7 @@ int
 scriblr_save_file(int fd, const string *filename, int size, string *hash, int to){
 
     if( !validate( filename->c_str() ) ){
-        DEBUG("invalid filename");
+        VERBOSE("invalid filename: %s", filename->c_str());
         return 0;
     }
 
