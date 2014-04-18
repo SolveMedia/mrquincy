@@ -194,7 +194,8 @@ _hashval(const char *buf, int len){
 void
 MapOutSet::output(const char *buf, int len){
 
-    if( _nfile == 0 ) return;
+    if( _nfile == 0 ) return;	// nowhere to go
+    if( len == 1 )    return;	// drop empty record
 
     // only one output? short inpu? short circuit
     if( _nfile == 1 || len < 4 ){
