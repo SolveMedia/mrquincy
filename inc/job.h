@@ -37,9 +37,11 @@ public:
     int             	_n_xfer_running;
     int			_n_xfer_peering;
     int             	_n_dele_running;
+    int			_n_fails;
+    int			_n_task_redo;
     list<Delete*>	_to_delete;
 
-    Server(){ _isup = 1; _n_task_running = _n_xfer_running = _n_xfer_peering = _n_dele_running = 0; }
+    Server(){ _isup = 1; _n_task_running = _n_xfer_running = _n_xfer_peering = _n_dele_running = _n_fails = 0; _n_task_redo = 0;}
     ~Server();
 
     DISALLOW_COPY(Server);
@@ -49,6 +51,7 @@ public:
 #define JOB_TODO_STATE_PENDING	1
 #define JOB_TODO_STATE_RUNNING	2
 #define JOB_TODO_STATE_FINISHED	3
+#define JOB_TODO_STATE_CANCELED	4
 
 class ToDo {
 protected:
@@ -68,6 +71,7 @@ protected:
     void		pending(void){ _state = JOB_TODO_STATE_PENDING; }
 
     virtual int		maybe_start(void) = 0;
+    virtual int		maybe_replace(bool) = 0;
     virtual void	abort(void) = 0;
     virtual void	cancel(void) = 0;
     virtual void	finished(int) = 0;
@@ -76,9 +80,12 @@ protected:
     void		retry_or_abort(bool);
     int			start_check(void);
     void		start_common(void);
+    void		pend(void);
 
 public:
     virtual int		start(void) = 0;
+    bool		is_finished(void){ return _state == JOB_TODO_STATE_FINISHED; }
+
     friend class Job;
     DISALLOW_COPY(ToDo);
 };
@@ -86,18 +93,27 @@ public:
 class TaskToDo : public ToDo {
     ACPMRMTaskCreate	_g;
     long long		_totalsize;	// map only
+    int			_taskno;
 
     // stats
     hrtime_t		_run_start;
     int			_run_time;
 
-    TaskToDo(Job *, int);
+    TaskToDo		*_replacedby;
+    TaskToDo		*_replaces;
+    list<ToDo*>		_prerequisite;
+
+    TaskToDo(Job *, int, int);
     int			read_map_plan(FILE*);
-    int			wire_files(int, int, int, int);
+    int			wire_files(int, int, int);
     void		create_xfers(void);
     void		create_deles(void);
+    int			replace(int);
+    int			replace();
+    void		cancel_light();
 
     virtual int		maybe_start(void);
+    virtual int		maybe_replace(bool);
     virtual void	abort(void);
     virtual void	cancel(void);
     virtual void	finished(int);
@@ -116,6 +132,7 @@ class XferToDo : public ToDo {
     int			_peeridx;
 
     virtual int		maybe_start(void);
+    virtual int		maybe_replace(bool);
     virtual void	abort(void);
     virtual void	cancel(void);
     virtual void	finished(int);
@@ -132,6 +149,7 @@ public:
 
 class Step {
     string		_phase;
+    int			_width;
 
     vector<TaskToDo*>	_tasks;
 
@@ -141,13 +159,14 @@ class Step {
     long long		_xfer_size;
     int			_n_xfers_run;
 
-    Step(){ _run_start = 0; _run_time = 0; _xfer_size = 0; _n_xfers_run = 0; }
+    Step(){ _run_start = 0; _run_time = 0; _xfer_size = 0; _n_xfers_run = 0; _width = 0; }
     ~Step();
     int			read_map_plan(Job *, FILE*);
     void		report_final_stats(Job *);
 
     friend class Job;
     friend class XferToDo;
+    friend class TaskToDo;
     DISALLOW_COPY(Step);
 };
 
@@ -207,12 +226,14 @@ class Job {
     int			try_to_do_something(bool);
     int			maybe_start_something_x(void);
     int			check_timeouts(void);
+    int			maybe_specexec(void);
     ToDo*		find_todo_x(const string *) const;
     void		thread_done(void);
 
     int			server_index(const char *);
     void		enrunning_x(ToDo*);
     void		derunning_x(ToDo*);
+    void		depending_x(ToDo*);
     void		log_progress(bool);
     void		json(const char *, string *);
     void		add_delete_x(const string *, int);

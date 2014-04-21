@@ -77,6 +77,8 @@ public:
     void reply_peers(ACPMRMStatusReply *);
     Peer *find(const char *);
     NetAddr *find_addr(const char*);
+    bool is_it_up(const char *);
+    int current_load(const char *);
     Peer *random(void);
     void peer_up(const char*);
     void peer_dn(const char*);

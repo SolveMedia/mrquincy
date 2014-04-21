@@ -35,7 +35,7 @@ using std::ostringstream;
 PeerDB *peerdb = 0;
 
 static void *peerdb_periodic(void*);
-
+extern int current_load(void);
 
 void
 peerdb_init(void){
@@ -284,6 +284,34 @@ PeerDB::find_addr(const char *id){
     // is it me?
     if( !myserver_id.compare(id) ) return &mynetaddr;
     return 0;
+}
+
+bool
+PeerDB::is_it_up(const char *id){
+
+    // is it me? I am up.
+    if( !myserver_id.compare(id) ) return 1;
+
+    Peer *peer = find(id);
+    if( !peer ) return 0;
+    if( peer->_status != PEER_STATUS_UP ) return 0;
+    if( peer->_gstatus->status() != 200 ) return 0;
+
+    return 1;
+}
+
+int
+PeerDB::current_load(const char *id){
+#define MAXLOAD 999999
+
+    if( !myserver_id.compare(id) ) return ::current_load();
+    Peer *peer = find(id);
+    if( !peer ) return MAXLOAD;
+    if( peer->_status != PEER_STATUS_UP ) return MAXLOAD;
+    if( peer->_gstatus->status() != 200 ) return MAXLOAD;
+
+    return peer->_gstatus->sort_metric();
+#undef MAXLOAD
 }
 
 void

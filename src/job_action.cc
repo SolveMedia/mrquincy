@@ -44,25 +44,53 @@ Job::enrunning_x(ToDo *t){
 }
 
 void
+Job::depending_x(ToDo *t){
+    _pending.remove(t);
+}
+
+void
 ToDo::retry_or_abort(bool did_timeout){
 
-    if( ++_tries >= TODOMAXFAIL ){
-        _state = JOB_TODO_STATE_FINISHED;
+    if( _job->_n_fails > _job->_servers.size() * TODOMAXFAIL / 2){
         _job->abort();
         return;
     }
 
-    if( _job->_n_fails > _job->_servers.size() / 2 ){
-        _job->abort();
+    if( ++_tries >= TODOMAXFAIL ){
+        const char *serv = _job->_servers[_serveridx]->name.c_str();
+
+        // cannot replace a map task
+        // only replace if the failure is likely because the server is down
+        if( _job->_stepno && (did_timeout || !peerdb->is_it_up(serv) )){
+            maybe_replace(1);
+        }else{
+            _job->abort();
+        }
         return;
     }
 
     // retry
-    _state = JOB_TODO_STATE_PENDING;
     int delay = (did_timeout ? TODORETRYDELAY * _tries : TODORETRYQUICK);
     _delay_until = lr_now() + delay/2 + random_n( delay/2 ) + random_n( delay/2 );
 
-    _job->_pending.push_back(this);
+    pend();
+}
+
+int
+XferToDo::maybe_replace(bool import){
+    // wait until the task fails, and replace that
+    return 0;
+}
+
+int
+TaskToDo::maybe_replace(bool important){
+
+    if( replace() )
+        return 1;
+
+    if( important ) _job->abort();
+
+    return 0;
 }
 
 void
@@ -71,8 +99,10 @@ TaskToDo::failed(bool did_timeout){
     _job->kvetch("task %s failed", _xid.c_str());
     _job->derunning_x(this);
     _job->_servers[ _serveridx ]->_n_task_running --;
+    _job->_servers[ _serveridx ]->_n_fails ++;
     _job->_n_task_running --;
     _job->_n_fails ++;
+    _state = JOB_TODO_STATE_FINISHED;
 
     retry_or_abort(did_timeout);
 }
@@ -85,8 +115,10 @@ XferToDo::failed(bool did_timeout){
     _job->derunning_x(this);
     _job->_servers[ _serveridx ]->_n_xfer_running --;
     _job->_servers[ _peeridx   ]->_n_xfer_peering --;
+    _job->_servers[ _serveridx ]->_n_fails ++;
     _job->_n_xfer_running --;
     _job->_n_fails ++;
+    _state = JOB_TODO_STATE_FINISHED;
 
     retry_or_abort(did_timeout);
 }
@@ -130,6 +162,19 @@ TaskToDo::maybe_start(void){
     if( _job->_servers[ _serveridx ]->_n_task_running >= SERVERTASKMAX ) return 0;
     if( ! start_check() ) return 0;
 
+    // check prereqs
+    if( !_prerequisite.empty() ){
+        for(list<ToDo*>::iterator it=_prerequisite.begin(); it !=_prerequisite.end(); it++){
+            ToDo *t = *it;
+
+            if( ! t->is_finished() ) return 0;
+        }
+
+        _prerequisite.clear();
+    }
+
+    // ok, let's start....
+
     // we could create these at task construction time, but deferring until here
     // saves us effort if the job is aborted
     if( !_tries )
@@ -158,6 +203,7 @@ XferToDo::maybe_start(void){
     if( _job->_servers[ _peeridx   ]->_n_xfer_peering >= SERVERXFERMAX ) return 0;
     if( _job->_n_xfer_running >= XFERMAX ) return 0;
     if( ! start_check() ) return 0;
+
 
     _job->inform("starting xfer %s - %s : %s", _xid.c_str(), _g.filename().c_str(),
                  _job->_servers[ _serveridx ]->name.c_str());
@@ -218,18 +264,33 @@ TaskToDo::abort(void){
     toss_request(udp4_fd, _job->_servers[ _serveridx ], PHMT_MR_TASKABORT, &req );
 }
 
+void
+TaskToDo::cancel_light(void){
+    DEBUG("abort task");
+
+    if( _state == JOB_TODO_STATE_PENDING ){
+        _job->depending_x(this);
+        _state = JOB_TODO_STATE_CANCELED;
+        return;
+    }
+
+    if( _state != JOB_TODO_STATE_RUNNING ){
+        _job->derunning_x(this);
+        _state = JOB_TODO_STATE_CANCELED;
+        _job->_servers[ _serveridx ]->_n_task_running --;
+        _job->_n_task_running --;
+        return;
+    }
+}
+
 // remove task from run list, send abort request (tcp)
 void
 TaskToDo::cancel(void){
-    DEBUG("abort task");
     ACPMRMTaskAbort req;
 
-    _job->derunning_x(this);
-    _state = JOB_TODO_STATE_FINISHED;
-    _job->_servers[ _serveridx ]->_n_task_running --;
-    _job->_n_task_running --;
-
     if( _state != JOB_TODO_STATE_RUNNING ) return;
+
+    cancel_light();
 
     req.set_jobid( _job->_id );
     req.set_taskid( _xid.c_str() );
@@ -254,9 +315,12 @@ TaskToDo::finished(int amount){
 
     _job->inform("task %s finished", _xid.c_str());
     _job->derunning_x(this);
+
+    if( _state == JOB_TODO_STATE_RUNNING ){
+        _job->_servers[ _serveridx ]->_n_task_running --;
+        _job->_n_task_running --;
+    }
     _state = JOB_TODO_STATE_FINISHED;
-    _job->_servers[ _serveridx ]->_n_task_running --;
-    _job->_n_task_running --;
 
     // so how slow was it?
     if( amount ){
@@ -268,6 +332,12 @@ TaskToDo::finished(int amount){
     _job->_task_run_time += _run_time;
 
     create_xfers();
+
+    // if this was replaced, abort the replacement
+    if( _replacedby ) _replacedby->cancel_light();
+    // QQQ - also send udp?
+
+
 }
 
 void
@@ -317,13 +387,15 @@ TaskToDo::create_xfers(void){
     int noutf = _g.outfile_size();
 
     for(int i=0; i<noutf; i++){
-        if( _serveridx == (i % nserv) ) continue;	// no need to copy
-        XferToDo *x = new XferToDo(_job, &_g.outfile(i), _serveridx, i%nserv);
+        int dst = i % nserv;
+
+        // if file will be processed on this server, we do not need to copy it
+        // instead, make a backup copy on another server
+        if( _serveridx == dst ) dst = (i+1) % nserv;
+
+        XferToDo *x = new XferToDo(_job, &_g.outfile(i), _serveridx, dst);
         _job->_pending.push_back(x);
         _job->_xfers.push_back(x);
-
-        // backup - (i+1) % nserv
-
     }
 }
 

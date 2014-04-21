@@ -25,12 +25,12 @@ my $req = AC::Protocol->encode_request( {
     msgidno     => $$,
     want_reply  => 1,
 }, {
-    filename	=> 'foobar',
+    filename	=> 'mrtmp/foobar',
     hash_sha1	=> sha1_base64($content),
 }, \$content );
 
 
-my $s = AC::Protocol->connect_to_server( inet_aton('127.0.0.1'), 3509, 1 );
+my $s = AC::Protocol->connect_to_server( inet_aton('8.20.87.27'), 3506, 1 );
 die "connect failed\n" unless $s;
 
 # send req

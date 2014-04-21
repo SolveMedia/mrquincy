@@ -189,7 +189,7 @@ handle_jobstatus(NTD *ntd){
         toss_request(udp4_fd, & ntd->peer, PHMT_MR_TASKABORT, &ab);
     }
 
-    return reply_error(ntd, 404, "Not Found");
+    return reply_error(ntd, 404, "ToDo Not Found");
 }
 
 int
@@ -211,7 +211,7 @@ handle_mrdelete(NTD *ntd){
         if(!d) s = 0;
     }
 
-    return s ? reply_ok(ntd) : reply_error(ntd, 404, "Not Found");
+    return s ? reply_ok(ntd) : reply_error(ntd, 404, "(delete) Not Found");
 }
 
 
@@ -549,6 +549,8 @@ Step::report_final_stats(Job *j){
 
     for(int i=0; i<ntask; i++){
         TaskToDo *t = _tasks[i];
+
+        if( t->_state != JOB_TODO_STATE_FINISHED ) continue;
 
         sum  += t->_run_time;
         sum2 += t->_run_time * t->_run_time;

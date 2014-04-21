@@ -224,7 +224,7 @@ scriblr_get(NTD *ntd){
     // get size, sha1
     int size = file_size( file.c_str() );
     if( size == -1 )
-        return reply(ntd, 404, "Not Found", 0);
+        return reply(ntd, 404, "File Not Found", 0);
 
     char buf[64];
     file_hash( file.c_str(), buf, sizeof(buf) );

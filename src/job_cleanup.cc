@@ -48,9 +48,11 @@ TaskToDo::create_deles(void){
     int noutf = _g.outfile_size();
     int nserv = _job->_servers.size();
     for(int i=0; i<noutf; i++){
+        int dst = i % nserv;
+        if( _serveridx == dst ) dst = (i+1) % nserv;
         _job->add_delete_x(&_g.outfile(i), _serveridx);		// src
-        _job->add_delete_x(&_g.outfile(i), i % nserv);		// dst
-        // backup - (i+1)%nserv
+        _job->add_delete_x(&_g.outfile(i), dst);		// dst
+
     }
 }
 
@@ -115,8 +117,9 @@ Job::do_deletes(void){
         // remove job dir
         req.add_filename( jobdir.c_str() );
 
-        if( req.filename_size() )
-            make_request(srvr, PHMT_MR_FILEDEL, &req, TIMEOUT);
+        if( req.filename_size() ){
+            int ok = make_request(srvr, PHMT_MR_FILEDEL, &req, TIMEOUT);
+        }
     }
 
     _lock.w_lock();

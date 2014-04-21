@@ -71,6 +71,7 @@ Job::run(void){
         while( _state == JOB_STATE_RUNNING && !_want_abort ){
             try_to_do_something(1);
             check_timeouts();
+            maybe_specexec();
             log_progress(0);
             sleep(5);
         }
@@ -130,6 +131,12 @@ Job::update(const string *xid, const string *status, int progress, int amount){
     return 1;
 }
 
+void
+ToDo::pend(void){
+    _job->_pending.push_back( this );
+    pending();
+}
+
 int
 Job::start_step_x(void){
 
@@ -147,8 +154,7 @@ Job::start_step_x(void){
     // move tasks from plan -> pending
 
     for(int i=0; i<ntask; i++){
-        _pending.push_back( step->_tasks[i] );
-        step->_tasks[i]->pending();
+        step->_tasks[i]->pend();
     }
 
     inform("starting phase %s", _plan[_stepno]->_phase.c_str());
@@ -263,3 +269,31 @@ Job::check_timeouts(void){
     _lock.w_unlock();
     return 1;
 }
+
+int
+Job::maybe_specexec(void){
+
+    if( !_stepno ) return 0;	// we don't replace map tasks
+
+    int ntask = _plan[ _stepno ]->_width;
+    int nserv = _servers.size();
+
+    // not worthwhile
+    if( ntask < 5 ) return 0;
+    if( nserv < 5 ) return 0;
+
+    // too soon
+    // if( _plan[_stepno]->_run_start > lr_now() - 60 ) return 0;
+
+    // wait until most finish
+    if( _n_task_running >= ntask / 20 ) return 0;
+
+    for(list<ToDo*>::iterator it = _running.begin(); it != _running.end(); it++){
+        ToDo *t = *it;
+        // speculatively start some alternate tasks. maybe they will finish sooner.
+        t->maybe_replace(0);
+    }
+
+    return 1;
+}
+

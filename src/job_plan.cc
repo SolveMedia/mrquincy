@@ -35,13 +35,13 @@
 using std::ostringstream;
 
 
-#define REDUCEFACTOR		2		// reduce width factor
+#define REDUCEFACTOR		1.95		// reduce width factor
 #define REDUCEDECAY		.5
 #define WRITE_TIMEOUT		15
 #define FILESPEC		"mrtmp/j_%s/out_%03d_%03d_%03d"
 //                                    jobid  stepno srctask dsttask
 
-// NB: task #n runs on server #n (mod #servers)
+// NB: task #n (normally) runs on server #n (mod #servers)
 
 
 int
@@ -264,7 +264,7 @@ Job::plan_map(void){
     return ms;
 }
 
-TaskToDo::TaskToDo(Job *j, int n){
+TaskToDo::TaskToDo(Job *j, int sec, int tno){
 
     _totalsize   = 0;
     _job         = j;
@@ -273,6 +273,9 @@ TaskToDo::TaskToDo(Job *j, int n){
     _run_start   = 0;
     _run_time    = 0;
     _delay_until = 0;
+    _replaces    = 0;
+    _replacedby  = 0;
+    _taskno      = tno;
 
     _g.set_jobid(   j->_id );
     _g.set_console( j->_g.console().c_str() );
@@ -285,7 +288,7 @@ TaskToDo::TaskToDo(Job *j, int n){
         _g.set_priority( lr_now() >> 8 );
     }
 
-    const ACPMRMJobPhase *jp = &j->_g.section(n);
+    const ACPMRMJobPhase *jp = &j->_g.section(sec);
 
     _g.set_phase(   jp->phase().c_str() );
     _g.set_jobsrc(  jp->src().c_str() );
@@ -318,8 +321,10 @@ Step::read_map_plan(Job *j, FILE *f){
     // read in the tasks
 
     _tasks.resize(ntask);
+    _width = ntask;
+
     for(int i=0; i<ntask; i++){
-        TaskToDo *t = new TaskToDo(j, 0);
+        TaskToDo *t = new TaskToDo(j, 0, i);
         int s = t->read_map_plan(f);
         _tasks[i] = t;
         if( !s ) return 0;
@@ -427,8 +432,10 @@ Job::plan_reduce(void){
         DEBUG("%s ntask %d", step->_phase.c_str(), ntask);
 
         step->_tasks.resize(ntask);
+        step->_width = ntask;
+
         for(int j=0; j<ntask; j++){
-            TaskToDo *t = new TaskToDo(this, i);
+            TaskToDo *t = new TaskToDo(this, i, j);
             // assign a server
             t->_serveridx = j % nserv;
             step->_tasks[j] = t;
@@ -467,7 +474,7 @@ Job::plan_files(void){
 
         for(int j=0; j<ntask; j++){
             TaskToDo *t = step->_tasks[j];
-            t->wire_files(i, j, infile, outfile);
+            t->wire_files(i, infile, outfile);
         }
 
         DEBUG("phase %s: tasks %d, files: %d out", step->_phase.c_str(), ntask, outfile);
@@ -478,19 +485,20 @@ Job::plan_files(void){
 }
 
 int
-TaskToDo::wire_files(int stepno, int taskno, int infiles, int outfiles){
+TaskToDo::wire_files(int stepno, int infiles, int outfiles){
     char buf[256];
 
-    // outfiles
+    // outfiles: out_$step_$task_*
     for(int i=0; i<outfiles; i++){
-        snprintf(buf, sizeof(buf), FILESPEC, _g.jobid().c_str(), stepno, taskno, i);
+        // ...out_$step_$task_$out
+        snprintf(buf, sizeof(buf), FILESPEC, _g.jobid().c_str(), stepno, _taskno, i);
         _g.add_outfile(buf);
     }
 
-    // infiles (map already has infiles)
+    // infiles (map already has infiles): out_$prevstep_*_$task
     if( !_g.infile_size() ){
         for(int i=0; i<infiles; i++){
-            snprintf(buf, sizeof(buf), FILESPEC, _g.jobid().c_str(), stepno-1, i, taskno);
+            snprintf(buf, sizeof(buf), FILESPEC, _g.jobid().c_str(), stepno-1, i, _taskno);
             _g.add_infile(buf);
         }
     }
@@ -498,3 +506,77 @@ TaskToDo::wire_files(int stepno, int taskno, int infiles, int outfiles){
     return 1;
 }
 
+/****************************************************************/
+
+int
+TaskToDo::replace(){
+
+    // pick the best server
+    int nserv = _job->_servers.size();
+    int bestm=-1, besti=0;
+
+    for(int i=0; i<nserv; i++){
+        Server *s = _job->_servers[i];
+        int m = s->_n_task_running * 1000 + s->_n_fails * 500 + s->_n_xfer_running * 100
+            + peerdb->current_load(s->name.c_str())
+            + s->_n_task_redo * 1000;
+
+        if( (bestm == -1) || (m < bestm) ){
+            besti = i;
+            bestm = m;
+        }
+    }
+
+    replace( besti );
+}
+
+// replace a failed or slow task with one on another server
+int
+TaskToDo::replace(int newsrvr){
+
+    if( _replacedby ) return 0;
+    if( _replaces   ) return 0;
+
+    cancel_light();
+
+    // mostly, it looks like the task it is replacing
+    TaskToDo *nt = new TaskToDo( _job, _job->_stepno, _taskno );
+    _replacedby    = nt;
+    nt->_replaces  = this;
+    nt->_serveridx = newsrvr;
+    nt->_g.set_priority( _g.priority() );
+
+    nt->wire_files(_job->_stepno, _g.infile_size(), _g.outfile_size());
+
+    // create xfers for input files
+    int nserv = _job->_servers.size();
+    int ninf  = _g.infile_size();
+
+    _job->kvetch("replacing task %s -> %s, new server %s",
+            _xid.c_str(), nt->_xid.c_str(), _job->_servers[newsrvr]->name.c_str());
+
+    // we need to find the input files and get them to the new server
+    Step *prevstep = _job->_plan[ _job->_stepno - 1];
+    for(int i=0; i<ninf; i++){
+        // file i "out_step_$i_server" came from previous step task#i
+        // (the other copy is on the down server)
+        int src = prevstep->_tasks[i]->_serveridx;
+
+        // if the file originated on the down server, use the backup copy
+        if( _serveridx == src ) src = (src+1) % nserv;
+
+        XferToDo *x = new XferToDo(_job, &_g.infile(i), src, newsrvr);
+        DEBUG("  + xfer %d -> %d; %s %s", src, newsrvr, _g.infile(i).c_str(), _job->_servers[src]->name.c_str());
+        _job->_pending.push_back(x);
+        _job->_xfers.push_back(x);
+        nt->_prerequisite.push_back(x);
+    }
+
+    _job->_servers[newsrvr]->_n_task_redo ++;
+
+    // let'er go
+    nt->pend();
+
+
+    return 1;
+}
