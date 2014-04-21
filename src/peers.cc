@@ -124,10 +124,6 @@ Peer::is_up(void){
     _num_fail = 0;
     _status   = PEER_STATUS_UP;
     _last_up  = _last_try = lr_now();
-
-    _gstatus->set_status( 200 );
-    _gstatus->set_timestamp( _last_up );
-    _gstatus->set_lastup( _last_up );
 }
 
 void
@@ -136,7 +132,6 @@ Peer::is_down(void){
     _status = PEER_STATUS_DN;
     _gstatus->set_status( 0 );
     _gstatus->set_timestamp( _last_try );
-
 }
 
 void
