@@ -877,11 +877,10 @@ handle_hbreq(NTD* ntd){
     g.set_environment( config->environment.c_str() );
     g.set_timestamp( lr_now() );
     g.set_port( myport );
-    string compat = "mrq/" + myserver_id;	// XXX - temporary compat
-    g.set_server_id( compat.c_str() );
+    g.set_server_id( myserver_id.c_str() );
     g.set_process_id( getpid() );
 
-    // determine disk space
+    // determine disk space available
     if( ! statvfs( config->basedir.c_str(), &vfs ) ){
         g.set_capacity_metric( vfs.f_bavail / 2048 );	// MB avail
     }
