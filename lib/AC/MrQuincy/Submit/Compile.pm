@@ -72,12 +72,10 @@ sub config {
     my $param = shift;
     my $sec   = shift;
 
-    my $prog = $me->{content};
-
     my $v = $sec->{attr}{$param};
     return $v if defined $v;
 
-    $v = $prog->{config}{$param};
+    $v = $me->{config}{$param};
     return $v if defined $v;
 
     return undef;
