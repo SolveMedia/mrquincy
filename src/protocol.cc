@@ -161,7 +161,7 @@ make_request(NetAddr *addr, int reqno, google::protobuf::Message *g, int to){
     DEBUG("recv l=%d, %s", phi->data_length, res.ShortDebugString().c_str());
 
     if( res.status_code() != 200 ){
-        VERBOSE("make request failed: %d -> %s", reqno, res.status_message().c_str());
+        DEBUG("make request failed: %d -> %s", reqno, res.status_message().c_str());
         return 0;
     }
 
