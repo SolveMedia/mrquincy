@@ -91,7 +91,7 @@ ToDo::update(const string *status, int progress, int amount){
 
     _last_status = lr_now();
 
-    if( _state != JOB_TODO_STATE_RUNNING ) return 0;
+    if( _state != JOB_TODO_STATE_RUNNING || _state == JOB_TODO_STATE_CANCELED ) return 0;
     _progress    = progress;
 
     if( _status == *status ) return 0;
@@ -283,7 +283,7 @@ Job::maybe_specexec(void){
     if( nserv < 5 ) return 0;
 
     // too soon
-    // if( _plan[_stepno]->_run_start > lr_now() - 60 ) return 0;
+    if( _plan[_stepno]->_run_start > lr_now() - 30 ) return 0;
 
     // wait until most finish
     if( _n_task_running >= ntask / 20 ) return 0;

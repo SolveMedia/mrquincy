@@ -96,6 +96,8 @@ TaskToDo::maybe_replace(bool important){
 void
 TaskToDo::failed(bool did_timeout){
 
+    if( _state != JOB_TODO_STATE_RUNNING ) return;
+
     _job->kvetch("task %s failed", _xid.c_str());
     _job->derunning_x(this);
     _job->_servers[ _serveridx ]->_n_task_running --;
@@ -274,7 +276,7 @@ TaskToDo::cancel_light(void){
         return;
     }
 
-    if( _state != JOB_TODO_STATE_RUNNING ){
+    if( _state == JOB_TODO_STATE_RUNNING ){
         _job->derunning_x(this);
         _state = JOB_TODO_STATE_CANCELED;
         _job->_servers[ _serveridx ]->_n_task_running --;

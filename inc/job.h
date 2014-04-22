@@ -34,11 +34,11 @@ class Server : public NetAddr {
 public:
     int			_isup;
     int             	_n_task_running;
-    int             	_n_xfer_running;
-    int			_n_xfer_peering;
+    int             	_n_xfer_running;	// xfers running on this server
+    int			_n_xfer_peering;	// xfers running elsewhere pulling from this server
     int             	_n_dele_running;
-    int			_n_fails;
-    int			_n_task_redo;
+    int			_n_fails;		// tasks which failed on this server
+    int			_n_task_redo;		// replacement tasks sent to this server
     list<Delete*>	_to_delete;
 
     Server(){ _isup = 1; _n_task_running = _n_xfer_running = _n_xfer_peering = _n_dele_running = _n_fails = 0; _n_task_redo = 0;}
