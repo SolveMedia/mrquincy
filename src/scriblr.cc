@@ -57,7 +57,7 @@ reply(NTD *ntd, int code, const char *msg, const char *hash){
     protocol_header *pho = (protocol_header*) ntd->gpbuf_out;
     ACPScriblReply g;
 
-    VERBOSE("sending reply %d %s", code, msg);
+    DEBUG("sending reply %d %s", code, msg);
 
     if( !(phi->flags & PHFLAG_WANTREPLY) ) return 0;
 
