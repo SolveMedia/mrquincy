@@ -53,8 +53,9 @@ public:
     const char       *_status;
     int               _progress;
     int               _runtime;
+    bool	      _aborted;
 
-    Task() { _pid = 0; _status = "PENDING"; _progress = 0; _created = lr_now(); _runtime = 0; }
+    Task() { _pid = 0; _status = "PENDING"; _progress = 0; _created = lr_now(); _runtime = 0; _aborted = 0; }
 };
 
 
@@ -197,6 +198,7 @@ QueuedTask::abort(const string *id){
             Task *t = (Task*)g;
             if( !id->compare( t->_g.taskid() ) ){
                 killpid  = t->_pid;
+                t->_aborted = 1;
                 break;
             }
         }
@@ -302,6 +304,7 @@ do_task(void *x){
         t->_runtime = lr_now() - start;
         if( ok ) break;
         if( t->_runtime >= TASKTIMEOUT/2 ) break;
+        if( t->_aborted ) break;
         sleep(5);
     }
 
