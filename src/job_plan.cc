@@ -537,8 +537,6 @@ TaskToDo::replace(int newsrvr){
     if( _replacedby ) return 0;
     if( _replaces   ) return 0;
 
-    cancel_light();
-
     // mostly, it looks like the task it is replacing
     TaskToDo *nt = new TaskToDo( _job, _job->_stepno, _taskno );
     _replacedby    = nt;
@@ -569,7 +567,12 @@ TaskToDo::replace(int newsrvr){
         DEBUG("  + xfer %d -> %d; %s %s", src, newsrvr, _g.infile(i).c_str(), _job->_servers[src]->name.c_str());
         _job->_pending.push_back(x);
         _job->_xfers.push_back(x);
+
+        // we cannot start the task until the files are xfered
         nt->_prerequisite.push_back(x);
+
+        // create deletes for these extra files now
+        _job->add_delete_x(&_g.infile(i), newsrvr);
     }
 
     _job->_servers[newsrvr]->_n_task_redo ++;
@@ -577,6 +580,7 @@ TaskToDo::replace(int newsrvr){
     // let'er go
     nt->pend();
 
+    VERBOSE("task %s replan %x %x", _xid.c_str(), _replacedby, _replaces);
 
     return 1;
 }
