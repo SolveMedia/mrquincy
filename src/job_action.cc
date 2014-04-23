@@ -106,6 +106,12 @@ TaskToDo::failed(bool did_timeout){
     _job->_n_fails ++;
     _state = JOB_TODO_STATE_FINISHED;
 
+    TaskToDo *alt = _replaces ? _replaces : _replacedby;
+    if( alt ){
+        // if there is an alternate task still running, let it finish
+        if( ! alt->is_finished() ) return;
+    }
+
     retry_or_abort(did_timeout);
 }
 void
@@ -267,18 +273,18 @@ TaskToDo::abort(void){
 }
 
 void
-TaskToDo::cancel_light(void){
-    DEBUG("abort task");
+TaskToDo::discard(void){
 
+    DEBUG("discard %s %d", _xid.c_str(), _state);
     if( _state == JOB_TODO_STATE_PENDING ){
         _job->depending_x(this);
-        _state = JOB_TODO_STATE_CANCELED;
+        _state = JOB_TODO_STATE_FINISHED;
         return;
     }
 
     if( _state == JOB_TODO_STATE_RUNNING ){
         _job->derunning_x(this);
-        _state = JOB_TODO_STATE_CANCELED;
+        _state = JOB_TODO_STATE_FINISHED;
         _job->_servers[ _serveridx ]->_n_task_running --;
         _job->_n_task_running --;
         return;
@@ -290,14 +296,33 @@ void
 TaskToDo::cancel(void){
     ACPMRMTaskAbort req;
 
-    if( _state != JOB_TODO_STATE_RUNNING ) return;
+    int prevstate = _state;
 
-    cancel_light();
+    discard();
+
+    if( prevstate != JOB_TODO_STATE_RUNNING ) return;
 
     req.set_jobid( _job->_id );
     req.set_taskid( _xid.c_str() );
 
     make_request( _job->_servers[_serveridx], PHMT_MR_TASKABORT, &req, IO_TIMEOUT );
+}
+
+// same, but udp
+void
+TaskToDo::cancel_light(void){
+    ACPMRMTaskAbort req;
+
+    int prevstate = _state;
+
+    discard();
+
+    if( prevstate != JOB_TODO_STATE_RUNNING ) return;
+
+    req.set_jobid( _job->_id );
+    req.set_taskid( _xid.c_str() );
+
+    toss_request(udp4_fd, _job->_servers[ _serveridx ], PHMT_MR_TASKABORT, &req );
 }
 
 void
@@ -335,10 +360,9 @@ TaskToDo::finished(int amount){
 
     create_xfers();
 
-    // if this was replaced, abort the replacement
+    // if this was replaced, abort the replacement (and vv)
     if( _replacedby ) _replacedby->cancel_light();
-    // QQQ - also send udp?
-
+    if( _replaces   ) _replaces->cancel_light();
 
 }
 

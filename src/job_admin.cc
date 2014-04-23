@@ -179,13 +179,18 @@ handle_jobstatus(NTD *ntd){
     if( f )
         return reply_ok(ntd);
 
+    // arrived late, just ignore
+    if( req.phase() == "FINISHED" || req.phase() == "FAILED" )
+        return reply_ok(ntd);
+
+
     // not found - must be something orphaned when something restarted
     // tell the slave to abort the task
     if( !ntd->is_tcp ){
         ACPMRMTaskAbort ab;
         ab.set_jobid( req.jobid().c_str() );
         ab.set_taskid( req.xid().c_str() );
-        DEBUG("sending job 404 to %s", inet_ntoa(ntd->peer.sin_addr));
+        DEBUG("sending job 404 to %s for %s %s %s", inet_ntoa(ntd->peer.sin_addr), req.jobid().c_str(), req.xid().c_str(), req.phase().c_str());
         toss_request(udp4_fd, & ntd->peer, PHMT_MR_TASKABORT, &ab);
     }
 
@@ -379,6 +384,7 @@ Job::find_todo_x(const string *xid) const{
         ToDo *t = *it;
         if( ! xid->compare( t->_xid ) ) return t;
     }
+
     return 0;
 }
 

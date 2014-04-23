@@ -91,7 +91,7 @@ ToDo::update(const string *status, int progress, int amount){
 
     _last_status = lr_now();
 
-    if( _state != JOB_TODO_STATE_RUNNING || _state == JOB_TODO_STATE_CANCELED ) return 0;
+    if( _state != JOB_TODO_STATE_RUNNING ) return 0;
     _progress    = progress;
 
     if( _status == *status ) return 0;
@@ -273,26 +273,37 @@ Job::check_timeouts(void){
 int
 Job::maybe_specexec(void){
 
-    if( !_stepno ) return 0;	// we don't replace map tasks
+    _lock.r_lock();
 
     int ntask = _plan[ _stepno ]->_width;
     int nserv = _servers.size();
 
+    int l = 1;
+    if( !_stepno ) l = 0;	// we don't replace map tasks
+
     // not worthwhile
-    if( ntask < 5 ) return 0;
-    if( nserv < 5 ) return 0;
+    if( ntask < 5 ) l = 0;
+    if( nserv < 5 ) l = 0;
 
     // too soon
-    if( _plan[_stepno]->_run_start > lr_now() - 30 ) return 0;
+    if( _plan[_stepno]->_run_start > lr_now() - 30 ) l = 0;
 
     // wait until most finish
-    if( _n_task_running >= ntask / 20 ) return 0;
+    if( _n_task_running >= ntask / 20 ) l = 0;
+
+    _lock.r_unlock();
+
+    if( !l ) return 0;
+
+    _lock.w_lock();
 
     for(list<ToDo*>::iterator it = _running.begin(); it != _running.end(); it++){
         ToDo *t = *it;
         // speculatively start some alternate tasks. maybe they will finish sooner.
         t->maybe_replace(0);
     }
+
+    _lock.w_unlock();
 
     return 1;
 }

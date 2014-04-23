@@ -51,7 +51,6 @@ public:
 #define JOB_TODO_STATE_PENDING	1
 #define JOB_TODO_STATE_RUNNING	2
 #define JOB_TODO_STATE_FINISHED	3
-#define JOB_TODO_STATE_CANCELED	4
 
 class ToDo {
 protected:
@@ -109,9 +108,9 @@ class TaskToDo : public ToDo {
     void		create_xfers(void);
     void		create_deles(void);
     int			replace(int);
-    int			replace();
-    void		cancel_light();
-
+    int			replace(void);
+    void		cancel_light(void);
+    void		discard(void);
     virtual int		maybe_start(void);
     virtual int		maybe_replace(bool);
     virtual void	abort(void);

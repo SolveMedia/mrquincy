@@ -580,7 +580,5 @@ TaskToDo::replace(int newsrvr){
     // let'er go
     nt->pend();
 
-    VERBOSE("task %s replan %x %x", _xid.c_str(), _replacedby, _replaces);
-
     return 1;
 }
