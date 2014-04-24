@@ -693,6 +693,9 @@ network_init(void){
     i = 1;
     setsockopt(udp4_fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i));
 
+    i = 1024 * 1024;
+    setsockopt(udp4_fd, SOL_SOCKET, SO_RCVBUF, &i, sizeof(i));
+
     i = bind(udp4_fd, (sockaddr*)&sa, sizeof(sa));
     if( i == -1 ){
 	FATAL("cannot bind to udp4 port");
