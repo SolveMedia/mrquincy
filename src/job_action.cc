@@ -51,7 +51,7 @@ Job::depending_x(ToDo *t){
 void
 ToDo::retry_or_abort(bool did_timeout){
 
-    if( _job->_n_fails > _job->_servers.size() * TODOMAXFAIL / 2){
+    if( _job->_n_fails > _job->current_width() * TODOMAXFAIL / 2){
         _job->abort();
         return;
     }
@@ -418,6 +418,9 @@ TaskToDo::create_xfers(void){
         // if file will be processed on this server, we do not need to copy it
         // instead, make a backup copy on another server
         if( _serveridx == dst ) dst = (i+1) % nserv;
+
+        // just one server?
+        if( _serveridx == dst ) continue;
 
         XferToDo *x = new XferToDo(_job, &_g.outfile(i), _serveridx, dst);
         _job->_pending.push_back(x);

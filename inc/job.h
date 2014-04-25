@@ -245,6 +245,7 @@ public:
     ~Job();
     int			init(int, const char *, int);
     int			priority(void){ return _g.priority(); }
+    int			current_width(void){ return _plan[_stepno]->_tasks.size(); }
     void		run(void);
     void		kvetch(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// errors
     void		inform(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// diags
