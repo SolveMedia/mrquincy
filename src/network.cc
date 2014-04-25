@@ -787,7 +787,7 @@ report_status(NTD *ntd){
 
 static int
 report_load(NTD *ntd){
-    return snprintf(ntd->gpbuf_out, ntd->out_size, "loadave: %f\n", current_load() / 1000 );
+    return snprintf(ntd->gpbuf_out, ntd->out_size, "loadave: %f\n", current_load() / 1000.0 );
 }
 
 
