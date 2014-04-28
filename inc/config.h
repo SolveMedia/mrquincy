@@ -40,6 +40,7 @@ public:
     int 		port_console;
     int 		port_mrquincy;
     int			enable_scriblr;
+    int			available;
 
     int 		debuglevel;
     char 		debugflags[256/8];

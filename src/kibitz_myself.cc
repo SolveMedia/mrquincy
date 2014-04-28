@@ -12,6 +12,7 @@
 #include "diag.h"
 #include "config.h"
 #include "misc.h"
+#include "runmode.h"
 #include "network.h"
 #include "hrtime.h"
 
@@ -78,7 +79,11 @@ about_myself(ACPMRMStatus *g){
     g->set_subsystem( MYNAME );
     g->set_via( myserver_id.c_str() );
     g->set_path( "." );
-    g->set_status( (now > starttime + BOOTTIME) ? 200 : 102 );
+    if( config->available && (runmode.mode() == RUN_MODE_RUN) ){
+        g->set_status( (now > starttime + BOOTTIME) ? 200 : 102 );
+    }else{
+        g->set_status( 102 );
+    }
     g->set_timestamp( now );
     g->set_lastup( now );
     g->set_boottime( starttime );

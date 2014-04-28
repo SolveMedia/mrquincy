@@ -69,6 +69,7 @@ SET_INT_VAL(port_console, 0);
 SET_INT_VAL(debuglevel, 0);
 
 SET_INT_VAL(enable_scriblr, 0);
+SET_INT_VAL(available, 0);
 SET_INT_VAL(hw_cpus, 0);
 
 SET_STR_VAL(environment);
@@ -94,6 +95,7 @@ static struct {
     { "error_mailto",   set_error_mailto   },
     { "error_mailfrom", set_error_mailfrom },
     { "scriblr",	set_enable_scriblr },
+    { "available",      set_available      },
     { "allow",		add_acl     	   },
     { "seedpeer",	add_peer 	   },
     { "syslog",		ignore_conf        },	// NYI
@@ -361,6 +363,7 @@ Config::Config(){
     port_console   = PORT_CONSOLE;
     debuglevel     = 0;
     enable_scriblr = 1;
+    available      = 1;
     udp_threads	   = 2;
     tcp_threads	   = 4;
     environment.assign("unknown");
