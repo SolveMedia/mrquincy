@@ -80,6 +80,20 @@ format_dt(int sec, ostringstream &b){
     b << std::setw(16) << buf;
 }
 
+static void
+report_peer(ostringstream &out, const ACPMRMStatus *g){
+
+    out << std::setw(30) << std::left  << g->server_id().c_str()
+        << std::setw(4)  << std::right << g->status()
+        << std::setw(8)  << std::right << g->sort_metric()
+        << std::setw(10) << std::right << g->capacity_metric()
+        << std::setw(4)  << std::right << (lr_now() - g->lastup());
+
+    format_dt( lr_now() - g->boottime(), out );
+
+    out << "\n";
+}
+
 
 // report peers, status, + metrics - for diag
 int
@@ -93,18 +107,14 @@ PeerDB::report(NTD *ntd){
     for(list<Peer*>::const_iterator it=_allpeers.begin(); it != _allpeers.end(); it++){
         const Peer *p = *it;
 
-        out << std::setw(30) << std::left  << p->_id
-            << std::setw(4)  << std::right << p->_gstatus->status()
-            << std::setw(8)  << std::right << p->_gstatus->sort_metric()
-            << std::setw(10) << std::right << p->_gstatus->capacity_metric()
-            << std::setw(4)  << std::right << (lr_now() - p->_gstatus->lastup());
-
-        format_dt( lr_now() - p->_gstatus->boottime(), out );
-
-        out << "\n";
-
+        report_peer( out, p->_gstatus );
     }
     _lock.r_unlock();
+
+    // include myself
+    ACPMRMStatus me;
+    about_myself( &me );
+    report_peer( out, &me );
 
     int sz = out.str().length();
     ntd->out_resize( sz + 1 );
