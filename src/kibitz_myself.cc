@@ -54,6 +54,9 @@ myself_init(void){
     starttime = lr_now();
 
     // find private internal network info
+    // we name the private internal address "pin-$hostname"
+    // you may need to adjust this for your network
+
     snprintf(pinhost, sizeof(pinhost), "pin-%s", myhostname);
     he = gethostbyname( pinhost );
     if( he && he->h_length ){
@@ -67,10 +70,7 @@ void
 about_myself(ACPMRMStatus *g){
     hrtime_t now = lr_now();
     ACPIPPort *ip;
-    double load[3];
     struct statvfs vfs;
-
-    getloadavg( load, 3 );
 
     g->set_hostname( myhostname );
     g->set_server_id( myserver_id.c_str() );
