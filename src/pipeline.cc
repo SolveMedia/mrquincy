@@ -212,7 +212,7 @@ spawn(const char *prog, const ACPMRMTaskCreate *g, int fin, int fout, int ferr, 
 
     // build argv
     int argc = g ? g->infile_size() : 0;
-    const char * argv[argc + 1];
+    const char * argv[argc + 2];
 
     argv[0] = (char*)prog;
     for(int i=0; i<argc; i++){
