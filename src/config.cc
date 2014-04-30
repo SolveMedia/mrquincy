@@ -2,7 +2,7 @@
   Copyright (c) 2008 by Jeff Weisberg
   Author: Jeff Weisberg <jaw @ tcp4me.com>
   Created: 2008-Dec-28 12:16 (EST)
-  Function:
+  Function: the config file
 
   $Id: config.cc,v 1.3 2012/04/02 18:13:20 jaw Exp $
 

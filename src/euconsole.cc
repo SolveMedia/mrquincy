@@ -2,7 +2,7 @@
   Copyright (c) 2014
   Author: Jeff Weisberg <jaw @ solvemedia.com>
   Created: 2014-Mar-21 15:22 (EDT)
-  Function: 
+  Function: send messages to the end-user console
 
 */
 #define CURRENT_SUBSYSTEM	't'

@@ -2,7 +2,7 @@
   Copyright (c) 2014
   Author: Jeff Weisberg <jaw @ solvemedia.com>
   Created: 2014-Mar-26 12:27 (EDT)
-  Function: 
+  Function: plan the job - what task runs where?
 
 */
 #define CURRENT_SUBSYSTEM	'j'

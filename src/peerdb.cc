@@ -2,7 +2,7 @@
   Copyright (c) 2014
   Author: Jeff Weisberg <jaw @ solvemedia.com>
   Created: 2014-Mar-17 12:51 (EDT)
-  Function: 
+  Function: database of peer nodes and their vitals
 
 */
 #define CURRENT_SUBSYSTEM	'P'

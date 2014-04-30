@@ -2,9 +2,16 @@
   Copyright (c) 2014
   Author: Jeff Weisberg <jaw @ solvemedia.com>
   Created: 2014-Mar-14 15:53 (EDT)
-  Function: 
+  Function: kibitz client
 
 */
+
+// YIDDISH-ENGLISH GLOSSARY
+//     Kibitz - Gossip. Casual information exchange with ones peers.
+
+// we keep track of peer nodes by randomly kibitzing (gossiping)
+// with other nodes
+
 
 #define CURRENT_SUBSYSTEM	'k'
 
@@ -87,8 +94,8 @@ kibitz_with_random_peer(void *notused){
 
     // connect
     // build request
-    // send request
-    // recv reply (list of all peers)
+    // send request (with info about myself)
+    // recv reply (info on all all peers)
     // process (ignore info about self)
 
     int fd = tcp_connect(peer, TIMEOUT);

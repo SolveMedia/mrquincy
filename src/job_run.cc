@@ -2,7 +2,7 @@
   Copyright (c) 2014
   Author: Jeff Weisberg <jaw @ solvemedia.com>
   Created: 2014-Mar-26 11:13 (EDT)
-  Function: 
+  Function: run the job
 
 */
 #define CURRENT_SUBSYSTEM	'j'
