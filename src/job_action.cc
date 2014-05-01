@@ -232,7 +232,7 @@ Job::thread_done(void){
     _lock.w_lock();
     _n_threads--;
     _lock.w_unlock();
-    try_to_do_something(1);
+    try_to_do_something( _n_threads ? 0 : 1 );
 }
 
 int
