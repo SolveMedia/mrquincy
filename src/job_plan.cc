@@ -550,7 +550,7 @@ TaskToDo::replace(int newsrvr){
     int nserv = _job->_servers.size();
     int ninf  = _g.infile_size();
 
-    _job->kvetch("replacing task %s -> %s, new server %s",
+    _job->inform2("replacing task %s -> %s, new server %s",
             _xid.c_str(), nt->_xid.c_str(), _job->_servers[newsrvr]->name.c_str());
 
     // we need to find the input files and get them to the new server

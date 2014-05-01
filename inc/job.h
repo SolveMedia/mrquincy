@@ -249,6 +249,7 @@ public:
     void		run(void);
     void		kvetch(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// errors
     void		inform(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// diags
+    void		inform2(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// diags + log
     void		report(const char *m, const char *a=0, const char *b=0, const char *c=0, const char *d=0) const;		// stats
     void		notify_finish(void) const;
     void		send_server_list(int);

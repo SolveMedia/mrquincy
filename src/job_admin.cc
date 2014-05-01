@@ -68,7 +68,7 @@ job_periodic(void *notused){
     while(1){
         // can we start any queued jobs?
         jobq.start_more(MAXJOB);
-        sleep(5);
+        sleep(1);
     }
 }
 
@@ -229,9 +229,9 @@ QueuedJob::update(ACPMRMActionStatus *g){
 
     _lock.r_lock();
 
-    for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
-        void *g = *it;
-        Job *j = (Job*)g;
+    for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+        QueueElem *e = *it;
+        Job *j = (Job*)e->_elem;
         if( !id->compare( j->_id ) ){
             found = j;
             break;
@@ -262,9 +262,9 @@ QueuedJob::shutdown(void){
     }
     _queue.clear();
 
-    for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
-        void *g = *it;
-        Job *j = (Job*)g;
+    for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+        QueueElem *e = *it;
+        Job *j = (Job*)e->_elem;
         VERBOSE("aborting job %s", j->_id);
         j->abort();
     }
@@ -300,9 +300,9 @@ QueuedJob::abort(const string *id){
         delete found;
     }else{
         Job *fj = 0;
-        for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
-            void *g = *it;
-            Job *j = (Job*)g;
+        for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+            QueueElem *e = *it;
+            Job *j = (Job*)e->_elem;
             if( !id->compare( j->_id ) ){
                 fj = j;
                 break;
@@ -420,6 +420,16 @@ Job::inform(const char *msg, const char *arg1, const char *arg2, const char *arg
 
     snprintf(buf, sizeof(buf), msg, arg1, arg2, arg3, arg4);
     DEBUG("job: %s %s", _id, buf);
+
+    send_eu_msg_x("debug", buf);
+}
+
+void
+Job::inform2(const char *msg, const char *arg1, const char *arg2, const char *arg3, const char *arg4) const {
+    char buf[1024];
+
+    snprintf(buf, sizeof(buf), msg, arg1, arg2, arg3, arg4);
+    VERBOSE("job: %s %s", _id, buf);
 
     send_eu_msg_x("debug", buf);
 }
