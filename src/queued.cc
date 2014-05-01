@@ -17,6 +17,8 @@
 #include "lock.h"
 #include "queued.h"
 
+#include <unistd.h>
+
 #include "mrmagoo.pb.h"
 #include "std_reply.pb.h"
 
@@ -39,10 +41,10 @@ Queued::start_or_queue(void *g, int prio, int max){
 
     _lock.w_lock();
 
-    if( _queue.empty() && _running.empty() ) _last_status = lr_now();
+    QueueElem *e = new QueueElem(g, prio);
+    e->_last_status = lr_now() - random_n(MINSTATUS);
 
     if( nrunning() >= max ){
-        QueueElem *e = new QueueElem(g, prio);
 
         // insert in priority order
         list<QueueElem*>::iterator it;
@@ -53,7 +55,7 @@ Queued::start_or_queue(void *g, int prio, int max){
         _queue.insert(it, e);
 
     }else{
-        _running.push_back(g);
+        _running.push_back(e);
         start(g);
     }
     _lock.w_unlock();
@@ -72,8 +74,9 @@ Queued::is_dupe(void *g){
             break;
         }
     }
-    for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
-        void *x = *it;
+    for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+        QueueElem *e = *it;
+        void *x = e->_elem;
         if( same(g, x) ){
             dupe = 1;
             break;
@@ -97,8 +100,9 @@ Queued::json(string *dst){
         if( n++ ) dst->append(",\n    ");
         json1("queued", x, dst);
     }
-    for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
-        void *x = *it;
+    for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+        QueueElem *e = *it;
+        void *x = e->_elem;
         if( n++ ) dst->append(",\n    ");
         json1("running", x, dst);
     }
@@ -111,7 +115,17 @@ void
 Queued::done(void *g){
 
     _lock.w_lock();
-    _running.remove(g);
+
+    // find + remove
+    for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+        QueueElem *e = *it;
+        if( e->_elem == g ){
+            _running.remove(e);
+            delete e;
+            break;
+        }
+    }
+
     _lock.w_unlock();
 }
 
@@ -126,25 +140,28 @@ Queued::start_more(int max){
         QueueElem *e = _queue.front();
         void *g = e->_elem;
         _queue.pop_front();
-        delete e;
-        _running.push_back(g);
+        _running.push_back(e);
         start(g);
     }
     _lock.w_unlock();
 
     // send statuses
-    if( _last_status > lr_now() - MINSTATUS ) return;
-    _last_status = lr_now();
+    hrtime_t old = lr_now() - MINSTATUS;
 
     _lock.r_lock();
     for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
         QueueElem *e = *it;
         void *g = e->_elem;
+        if( e->_last_status > old ) continue;
         send_status(g);
+        usleep( 1000 );
     }
-    for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
-        void *g = *it;
+    for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+        QueueElem *e = *it;
+        void *g = e->_elem;
+        if( e->_last_status > old ) continue;
         send_status(g);
+        usleep( 1000 );
     }
     _lock.r_unlock();
 }

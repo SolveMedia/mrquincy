@@ -87,7 +87,7 @@ task_periodic(void *notused){
     while(1){
         // can we start any queued tasks?
         taskq.start_more(MAXTASK);
-        sleep(5);
+        sleep(1);
     }
 }
 
@@ -156,11 +156,13 @@ QueuedTask::shutdown(void){
     }
     _queue.clear();
 
-    for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
-        void *g = *it;
-        Task *t = (Task*)g;
+    for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+        QueueElem *e = *it;
+        Task *t = (Task*)e->_elem;
         VERBOSE("aborting task %s", t->_g.taskid().c_str());
         if( t->_pid ) kill( t->_pid, 3 );
+        delete e;
+
     }
     _running.clear();
 
@@ -193,9 +195,10 @@ QueuedTask::abort(const string *id){
         delete found;
         delete t;
     }else{
-        for(list<void*>::iterator it=_running.begin(); it != _running.end(); it++){
-            void *g = *it;
-            Task *t = (Task*)g;
+        for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+            QueueElem *e = *it;
+            Task *t = (Task*)e->_elem;
+
             if( !id->compare( t->_g.taskid() ) ){
                 killpid  = t->_pid;
                 t->_aborted = 1;

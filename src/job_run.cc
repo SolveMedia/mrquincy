@@ -227,9 +227,10 @@ Job::try_to_do_something(bool try_harder){
     }
 
     // can we start anything?
-    maybe_start_something_x();
+    int st = maybe_start_something_x();
 
     _lock.w_unlock();
+
     return 1;
 }
 

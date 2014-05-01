@@ -80,6 +80,6 @@ current_load(void){
 
     getloadavg( load, 3 );
 
-    return (int)(load[1] * 1000) + job_nrunning() * 100 + (config->enable_scriblr ? 0 : 5000);
+    return (int)(load[1] * 1000) + job_nrunning() * 100;
 }
 

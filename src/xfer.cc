@@ -63,7 +63,7 @@ xfer_periodic(void *notused){
     while(1){
         // can we start any queued xfers?
         xferq.start_more(MAXXFER);
-        sleep(5);
+        sleep(1);
     }
 }
 
