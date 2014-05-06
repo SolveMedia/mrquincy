@@ -13,6 +13,7 @@ class ACPMRMTaskCreate;
 
 class Pipeline {
     int		_pid;
+    int		_inpid;
     string	_tmpfile;
 
     void _cleanup(void);
@@ -22,6 +23,7 @@ public:
     int waitpid(void);
     void abort(void);
     void done(void){ _cleanup(); }
+    bool still_producing(void);
 };
 
 

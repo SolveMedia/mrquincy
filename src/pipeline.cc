@@ -57,6 +57,16 @@ Pipeline::abort(void){
     if( _pid ) kill( _pid, 9 );
 }
 
+bool
+Pipeline::still_producing(void){
+
+    // is the input pipeline still running?
+    int ev;
+    int w = ::waitpid( _inpid, &ev, WNOHANG );
+
+    return (w == _inpid) ? 0 : 1;
+}
+
 int
 Pipeline::waitpid(void){
     int w, exitval;
@@ -167,12 +177,14 @@ Pipeline::Pipeline(const ACPMRMTaskCreate *g, int* outfds){
     if( e2 ){
         int p2 = spawn( e2, 0, pinterm[0], pprogin[1], pprogerr[1], unusedfd );
         DEBUG("spawn %s: %d", e2, p2);
+        _inpid = p2;
     }
 
     // initial prog (with files)
     // QQQ - stdin?
     int p1 = spawn( e1, g, unusedfd, pinterm[1], pprogerr[1], 0 );
     DEBUG("spawn %s %d", e1, p1);
+    if( !e2 ) _inpid = p1;
 
     // close the far ends of the pipes
     close(pprogin[0]);

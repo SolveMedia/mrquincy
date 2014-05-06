@@ -470,6 +470,10 @@ run_task_prog(int parent_fd, Task *t){
         int r = poll(pf, 3, tasktimeout * 1000);
         if( r == -1 && (errno == EINTR || errno == EAGAIN) ) continue;
         if( r <= 0 ){
+            // timeout.
+            // if the pipeline still running, don't abort yet.
+            if( pl.still_producing() ) continue;
+
             VERBOSE("task timeout (%d)", int(lr_now() - t0));
             pl.abort();
             _exit(1);
