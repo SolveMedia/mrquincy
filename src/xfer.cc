@@ -85,7 +85,7 @@ handle_xfer(NTD *ntd){
 
     DEBUG("recvd xfer request");
 
-    xferq.start_or_queue( (void*)req, 0, MAXXFER );
+    xferq.start_or_queue( (void*)req, req->_g.copyid().c_str(), 0, MAXXFER );
 
     return reply_ok(ntd);
 }
@@ -110,13 +110,11 @@ QueuedXfer::json1(const char *st, void *x, string *dst){
     dst->append(b.str().c_str());
 }
 
-bool
-QueuedXfer::same(void *xa, void *xb){
-    Xfer *ga = (Xfer*)xa;
-    Xfer *gb = (Xfer*)xb;
+void
+QueuedXfer::_abort_q(void *x){
+    Xfer *t = (Xfer*)x;
 
-    const string *id = & ga->_g.copyid();
-    return id->compare( gb->_g.copyid() ) ? 0 : 1;
+    delete t;
 }
 
 void

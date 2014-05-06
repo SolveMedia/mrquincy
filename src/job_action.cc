@@ -32,6 +32,7 @@
 #define TODORETRYQUICK	 	5
 #define SERVERTASKMAX		10
 #define SERVERXFERMAX		20
+#define SERVERTASKDELAY		2
 
 
 void
@@ -116,6 +117,7 @@ TaskToDo::failed(bool did_timeout){
 
     retry_or_abort(did_timeout);
 }
+
 void
 XferToDo::failed(bool did_timeout){
 
@@ -137,6 +139,7 @@ void
 ToDo::timedout(void){
 
     _job->kvetch("task %s timed out", _xid.c_str());
+
     abort();
     failed(1);
 }
@@ -168,8 +171,11 @@ ToDo::start_common(void){
 int
 TaskToDo::maybe_start(void){
 
+    Server *svr = _job->_servers[ _serveridx ];
+
     // too much running?
-    if( _job->_servers[ _serveridx ]->_n_task_running >= SERVERTASKMAX ) return 0;
+    if( svr->_n_task_running >= SERVERTASKMAX ) return 0;
+    if( svr->_last_task + SERVERTASKDELAY > lr_now() ) return 0;
     if( ! start_check() ) return 0;
 
     // check prereqs
@@ -193,7 +199,8 @@ TaskToDo::maybe_start(void){
     _job->inform("starting task %s - %s on %s", _xid.c_str(), _g.phase().c_str(),
                  _job->_servers[ _serveridx ]->name.c_str());
 
-    _job->_servers[ _serveridx ]->_n_task_running ++;
+    svr->_n_task_running ++;
+    svr->_last_task = lr_now();
     _job->_n_task_running ++;
     _job->_n_tasks_run ++;
 
@@ -236,7 +243,6 @@ Job::thread_done(void){
     _n_threads--;
     _lock.w_unlock();
 
-    usleep( random_n(100000) );
     try_to_do_something( _n_threads ? 0 : 1 );
 }
 

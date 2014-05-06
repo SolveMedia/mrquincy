@@ -115,7 +115,7 @@ handle_task(NTD *ntd){
 
     DEBUG("recvd task request");
 
-    taskq.start_or_queue( (void*)req, req->_g.priority(), MAXTASK );
+    taskq.start_or_queue( (void*)req, req->_g.taskid().c_str(), req->_g.priority(), MAXTASK );
 
     return reply_ok(ntd);
 }
@@ -137,90 +137,25 @@ handle_taskabort(NTD *ntd){
 
     DEBUG("recvd task abort %s", req.taskid().c_str());
 
-    taskq.abort(&req.taskid());
+    taskq.abort(req.taskid().c_str());
 
     return reply_ok(ntd);
 }
 
-// system is shutting down - kill running tasks, drain the queue
+
 void
-QueuedTask::shutdown(void){
+QueuedTask::_abort_q(void *x){
+    Task *t = (Task*)x;
 
-    _lock.w_lock();
-
-    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        QueueElem *e = *it;
-        Task *t = (Task*)e->_elem;
-        delete t;
-        delete e;
-    }
-    _queue.clear();
-
-    for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
-        QueueElem *e = *it;
-        Task *t = (Task*)e->_elem;
-        VERBOSE("aborting task %s", t->_g.taskid().c_str());
-        if( t->_pid ) kill( t->_pid, 3 );
-        delete e;
-
-    }
-    _running.clear();
-
-    _lock.w_unlock();
+    delete t;
 }
 
 void
-QueuedTask::abort(const string *id){
+QueuedTask::_abort_r(void *x){
+    Task *t = (Task*)x;
 
-    QueueElem *found = 0;
-    int killpid = 0;
-
-    // find task
-    //   dequeue if queued
-    //   kill if running
-
-    _lock.w_lock();
-
-    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        QueueElem *e = *it;
-        Task *t = (Task*)e->_elem;
-        if( !id->compare( t->_g.taskid() ) ){
-            found = e;
-            break;
-        }
-    }
-    if( found ){
-        _queue.remove(found);
-        Task *t = (Task*)found->_elem;
-        delete found;
-        delete t;
-    }else{
-        for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
-            QueueElem *e = *it;
-            Task *t = (Task*)e->_elem;
-
-            if( !id->compare( t->_g.taskid() ) ){
-                killpid  = t->_pid;
-                t->_aborted = 1;
-                break;
-            }
-        }
-    }
-
-    _lock.w_unlock();
-
-    if( killpid > 0 ){
-        kill(killpid, 3);
-    }
-}
-
-bool
-QueuedTask::same(void *xa, void *xb){
-    Task *ta = (Task*)xa;
-    Task *tb = (Task*)xb;
-
-    const string *id = & ta->_g.taskid();
-    return id->compare( tb->_g.taskid() ) ? 0 : 1;
+    t->_aborted = 1;
+    if( t->_pid ) kill( t->_pid, 3 );
 }
 
 void

@@ -35,13 +35,17 @@ Queued::nrunning(void){
 
 
 void
-Queued::start_or_queue(void *g, int prio, int max){
-
-    if( is_dupe(g) ) return;
+Queued::start_or_queue(void *g, const char *id, int prio, int max){
 
     _lock.w_lock();
 
-    QueueElem *e = new QueueElem(g, prio);
+    if( is_dupe(id) ){
+        _lock.w_unlock();
+        DEBUG("dupe request %s", id);
+        return;
+    }
+
+    QueueElem *e = new QueueElem(g, id, prio);
     e->_last_status = lr_now() - random_n(MINSTATUS);
 
     if( nrunning() >= max ){
@@ -62,27 +66,23 @@ Queued::start_or_queue(void *g, int prio, int max){
 }
 
 bool
-Queued::is_dupe(void *g){
+Queued::is_dupe(const char *id){
     bool dupe = 0;
 
-    _lock.r_lock();
     for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
         QueueElem *e = *it;
-        void *x = e->_elem;
-        if( same(g, x) ){
+        if( e->_id == id ){
             dupe = 1;
             break;
         }
     }
     for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
         QueueElem *e = *it;
-        void *x = e->_elem;
-        if( same(g, x) ){
+        if( e->_id == id ){
             dupe = 1;
             break;
         }
     }
-    _lock.r_unlock();
 
     return dupe;
 }
@@ -109,6 +109,64 @@ Queued::json(string *dst){
     _lock.r_unlock();
 
     dst->append("]");
+}
+
+
+void
+Queued::abort(const char *id){
+
+    QueueElem *found = 0;
+
+    _lock.w_lock();
+
+    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        QueueElem *e = *it;
+        if( e->_id == id ){
+            found = e;
+            break;
+        }
+    }
+    if( found ){
+        _queue.remove(found);
+        _abort_q( found->_elem );
+        delete found;
+    }else{
+        for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+            QueueElem *e = *it;
+            if( e->_id == id ){
+                found = e;
+                break;
+            }
+        }
+        if( found ){
+            _running.remove(found);
+            _abort_r( found->_elem );
+        }
+    }
+
+    _lock.w_unlock();
+}
+
+// system is shutting down - kill running tasks, drain the queue
+void
+Queued::shutdown(void){
+
+    _lock.w_lock();
+
+    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
+        QueueElem *e = *it;
+        _abort_q( e->_elem );
+        delete e;
+    }
+    _queue.clear();
+
+    for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
+        QueueElem *e = *it;
+        _abort_r( e->_elem );
+    }
+    _running.clear();
+
+    _lock.w_unlock();
 }
 
 void

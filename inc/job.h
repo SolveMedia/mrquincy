@@ -39,9 +39,11 @@ public:
     int             	_n_dele_running;
     int			_n_fails;		// tasks which failed on this server
     int			_n_task_redo;		// replacement tasks sent to this server
+    hrtime_t		_last_task;		// time of last task start
+
     list<Delete*>	_to_delete;
 
-    Server(){ _isup = 1; _n_task_running = _n_xfer_running = _n_xfer_peering = _n_dele_running = _n_fails = 0; _n_task_redo = 0;}
+    Server(){ _isup = 1; _n_task_running = _n_xfer_running = _n_xfer_peering = _n_dele_running = _n_fails = 0; _n_task_redo = 0; _last_task = 0;}
     ~Server();
 
     DISALLOW_COPY(Server);

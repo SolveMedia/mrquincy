@@ -109,6 +109,11 @@ Job::init(int fd, const char *buf, int len){
         DEBUG("console: %s", cons.c_str());
     }
 
+    int prio = priority();
+    if( !prio ) prio = lr_now() >> 8;
+
+    jobq.start_or_queue( (void*)this, _id, prio, MAXJOB );
+
     return 1;
 }
 
@@ -126,11 +131,6 @@ handle_job(NTD *ntd){
         delete req;
         return 0;
     }
-
-    int prio = req->priority();
-    if( !prio ) prio = lr_now() >> 8;
-
-    jobq.start_or_queue( (void*)req, prio, MAXJOB );
 
     return reply_ok(ntd);
 }
@@ -152,7 +152,7 @@ handle_jobabort(NTD *ntd){
 
     DEBUG("recvd job abort %s", req.jobid().c_str());
 
-    jobq.abort(&req.jobid());
+    jobq.abort(req.jobid().c_str());
 
     return reply_ok(ntd);
 }
@@ -248,80 +248,19 @@ QueuedJob::update(ACPMRMActionStatus *g){
     return s;
 }
 
-// system is shutting down - kill running tasks, drain the queue
+
 void
-QueuedJob::shutdown(void){
+QueuedJob::_abort_q(void *x){
+    Job *j = (Job*)x;
 
-    _lock.w_lock();
-
-    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        QueueElem *e = *it;
-        Job *j = (Job*)e->_elem;
-        delete j;
-        delete e;
-    }
-    _queue.clear();
-
-    for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
-        QueueElem *e = *it;
-        Job *j = (Job*)e->_elem;
-        VERBOSE("aborting job %s", j->_id);
-        j->abort();
-    }
-    _running.clear();
-
-    _lock.w_unlock();
+    delete j;
 }
 
 void
-QueuedJob::abort(const string *id){
+QueuedJob::_abort_r(void *x){
+    Job *j = (Job*)x;
 
-    QueueElem *found = 0;
-    int killpid = 0;
-
-    // find job
-    //   dequeue if queued
-    //   kill if running
-
-    _lock.w_lock();
-
-    for(list<QueueElem*>::iterator it=_queue.begin(); it != _queue.end(); it++){
-        QueueElem *e = *it;
-        Job *j = (Job*)e->_elem;
-        if( !id->compare( j->_id ) ){
-            found = e;
-            break;
-        }
-    }
-    if( found ){
-        _queue.remove(found);
-        Job *j = (Job*)found->_elem;
-        delete j;
-        delete found;
-    }else{
-        Job *fj = 0;
-        for(list<QueueElem*>::iterator it=_running.begin(); it != _running.end(); it++){
-            QueueElem *e = *it;
-            Job *j = (Job*)e->_elem;
-            if( !id->compare( j->_id ) ){
-                fj = j;
-                break;
-            }
-        }
-
-        if( fj ) fj->abort();
-    }
-
-    _lock.w_unlock();
-}
-
-bool
-QueuedJob::same(void *xa, void *xb){
-    Job *ja = (Job*)xa;
-    Job *jb = (Job*)xb;
-
-    const string *id = & ja->_g.jobid();
-    return id->compare( jb->_g.jobid() ) ? 0 : 1;
+    j->abort();
 }
 
 // running job gets its very own thread!
