@@ -456,6 +456,7 @@ run_task_prog(int parent_fd, Task *t){
     DEBUG("running task io loop");
     int tasktimeout = g->timeout();
     if( !tasktimeout ) tasktimeout = TASKTIMEOUT;
+    bool producing = 1;
     DEBUG("task timeout %d", tasktimeout);
 
     while(1){
@@ -467,12 +468,15 @@ run_task_prog(int parent_fd, Task *t){
             pf[i].revents = 0;
         }
 
-        int r = poll(pf, 3, tasktimeout * 1000);
+        int r = poll(pf, 3, (producing ? 60 : tasktimeout) * 1000);
         if( r == -1 && (errno == EINTR || errno == EAGAIN) ) continue;
         if( r <= 0 ){
             // timeout.
-            // if the pipeline still running, don't abort yet.
-            if( pl.still_producing() ) continue;
+            // if the pipeline still running, don't start the timeout clock until it finishes.
+            if( producing ){
+                producing = pl.still_producing();
+                continue;
+            }
 
             VERBOSE("task timeout (%d)", int(lr_now() - t0));
             pl.abort();
