@@ -101,7 +101,7 @@ TaskToDo::failed(bool did_timeout){
 
     if( _state != JOB_TODO_STATE_RUNNING ) return;
 
-    _job->kvetch("task %s failed", _xid.c_str());
+    _job->kvetch("task %s failed on %s", _xid.c_str(), _job->_servers[_serveridx]->name.c_str());
     _job->derunning_x(this);
     _job->_servers[ _serveridx ]->_n_task_running --;
     _job->_servers[ _serveridx ]->_n_fails ++;
