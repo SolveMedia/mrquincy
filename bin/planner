@@ -36,6 +36,7 @@ my $MAPSIZELIMIT = 250_000_000;
 
 # read servers from stdin
 my @server;
+my %serverload;
 read_server_list();
 
 # read config from stdin
@@ -97,14 +98,17 @@ sub read_server_list {
     my $sl = <>;
     my($sn) = $sl =~ /servers\s+(\d+)/;
     for (1 .. $sn){
-        chop(my $s = <>);
-        push @server, $s;
+        chop(my $l = <>);
+        my($sn, $sl) = split /\s+/, $l;
+        $serverload{$sn} = $sl;
+        push @server, $sn;
     }
 }
 
 
 sub plan_map {
 
+    my $maxload  = maxload();
     my %serverok = map{ $_ => 1 } @server;
     my %serversize;
     my %serverfile;
@@ -113,10 +117,18 @@ sub plan_map {
     for my $f (sort { $b->{size} <=> $a->{size} } @$files){
         # pick the one with the least so far
         my $best;
+        my $worst;
         for my $loc ( @{$f->{location}} ){
             next unless $serverok{$loc};	# server up?
+            if( $serverload{$loc} > $maxload ){
+                # has a high load - only use it if we have to
+                $worst = $loc;
+                next;
+            }
             $best = $loc if !$best || ($serversize{$best} > $serversize{$loc});
         }
+
+        $best ||= $worst;
 
         error( "cannot plan map: no server available for $f->{filename}: [@{$f->{location}}]" ) unless $best;
 
@@ -198,6 +210,23 @@ sub get_file_list {
 
     debug("found " .scalar(@files)." files");
     return \@files;
+}
+
+sub maxload {
+
+    my($t, $t2);
+    for my $l (values %serverload){
+        $t  += $l;
+        $t2 += $l * $l;
+    }
+
+    my $n = keys %serverload;
+    my $ave = $t / $n;
+    my $std = sqrt($t2 / $n - $ave * $ave);
+    my $max = $ave + 3 * $std;
+
+    print STDERR "ave: $ave; std: $std; max $max\n";
+    return $max;
 }
 
 sub error {

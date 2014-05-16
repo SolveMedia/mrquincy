@@ -207,9 +207,15 @@ Job::send_server_list(int fd){
 
     int len = snprintf(buf, sizeof(buf), "servers %d\n", _servers.size());
     write_to( fd, buf, len, WRITE_TIMEOUT );
+
     for(int i=0; i<_servers.size(); i++){
-        write_to(fd, _servers[i]->name.c_str(), _servers[i]->name.size(), WRITE_TIMEOUT );
-        write_to(fd, "\n", 1, WRITE_TIMEOUT );
+        Server *s = _servers[i];
+        int load = peerdb->current_load(s->name.c_str());
+
+        // serverid load
+        write_to(fd, s->name.c_str(), s->name.size(), WRITE_TIMEOUT );
+        len = snprintf(buf, sizeof(buf), " %d\n", load);
+        write_to( fd, buf, len, WRITE_TIMEOUT );
     }
 }
 
