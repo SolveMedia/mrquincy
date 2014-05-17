@@ -167,12 +167,23 @@ sub compile_map {
     my $sec = $prog->{map};
 
     my $loop = "\nwhile(<>){\n";
+    $loop   .= "\t" . 'my $d = $_;' . "\n";
 
-    if( $comp->config('lineinput', $sec) ){
-        $loop .= 'my $d = $_;' . "\n";
-    }else{
-        $loop .= "\t" . 'my $d = parse_dancr_log( $_ );' . "\n";
-        $loop .= "\t" . 'next unless $R->filter(  $d );' . "\n";
+    unless( $comp->config('lineinput', $sec) ){
+        if( $prog->{readinput} || $prog->{filterinput} ){
+            if( $prog->{readinput} ){
+                my $code = "sub readinput {\n$prog->{readinput}{code}\n}\n";
+                $loop = $code . $loop . "\t" . '$d = readinput( $d );' . "\n";
+            }
+
+            if( $prog->{filterinput} ){
+                my $code = "sub filterinput {\n$prog->{filterinput}{code}\n}\n";
+                $loop = $code . $loop . "\t" . 'next unless filterinput( $d );' . "\n";
+            }
+        }else{
+            $loop .= "\t" . '$d = parse_dancr_log( $d );' . "\n";
+            $loop .= "\t" . 'next unless $R->filter(  $d );' . "\n";
+        }
     }
 
     $loop .= <<'EOW';
