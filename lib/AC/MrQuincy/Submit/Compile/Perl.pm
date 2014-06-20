@@ -262,6 +262,7 @@ sub syntax_check {
     while(<$errs>){ $out .= $_ }
     waitpid( $pid, 0 );
     my $status = $?;
+    unlink $tmp;
 
     if( $status ){
         print STDERR "syntax error checking section $name\n";
