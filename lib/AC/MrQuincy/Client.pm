@@ -122,6 +122,11 @@ sub submit {
         want_reply	=> 1,
     }, $me->{job} );
 
+    my $size = length($req);
+    if( $size > 1000000 ){
+        print STDERR "ZOMG! This job is huge! $size bytes.\nHas your init section run amuck?\n";
+    }
+
     my $ok;
     if( my $master = $me->{master} ){
         # use specified master (for debugging)
