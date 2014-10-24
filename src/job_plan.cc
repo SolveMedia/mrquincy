@@ -129,6 +129,7 @@ spawn(Job *j, const char *prog, int fin, int fout){
     int pid = fork();
     if( pid == -1 ){
         j->kvetch("fork failed: %s", strerror(errno));
+        BUG("fork failed: %s", strerror(errno));
         return 0;
     }
 

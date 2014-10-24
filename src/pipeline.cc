@@ -94,7 +94,7 @@ Pipeline::waitpid(void){
 static void
 _fail(const char *msg){
     // uh oh!
-    VERBOSE("%s: %s", msg, strerror(errno));
+    BUG("%s: %s", msg, strerror(errno));
     exit(-1);
 }
 

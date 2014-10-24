@@ -140,11 +140,33 @@ diag(int level, const char *file, const char *func, int line, int system, const 
     }
 }
 
+void
+attach_cmd(FILE *dst, const char *prog, const char *label){
+    FILE *p;
+    char cmd[128];
+
+    snprintf(cmd, sizeof(cmd), prog, getpid());
+    p = popen(cmd, "r");
+    if(p){
+        char buf[32];
+
+        fprintf(dst, "\n%s:\n", label);
+        while(1){
+            int i = fread(buf, 1, sizeof(buf), p);
+            if( i <= 0 ) break;
+            fwrite(buf, 1, i, dst);
+        }
+
+        pclose(p);
+    }
+}
+
+
 static void
 send_error_email( const char *msg, int len, int with_trace ){
     FILE *f, *p;
-    char cmd[128];
     const char *mailto;
+    char cmd[128];
 
     if( config->error_mailto.empty() ) return;
 
@@ -162,21 +184,11 @@ send_error_email( const char *msg, int len, int with_trace ){
 
     // stack trace?
     if( with_trace ){
-        // non-portability alert! pstack is solaris only
-        snprintf(cmd, sizeof(cmd), "/usr/bin/pstack %d", getpid());
-        p = popen(cmd, "r");
-        if(p){
-            char buf[32];
-
-            fputs("\ntrace:\n", f);
-            while(1){
-                int i = fread(buf, 1, sizeof(buf), p);
-                if( i <= 0 ) break;
-                fwrite(buf, 1, i, f);
-            }
-
-            pclose(p);
-        }
+        // non-portability alert! these are solaris only
+        attach_cmd(f, "/usr/bin/pstack %d", "trace");
+        attach_cmd(f, "/usr/bin/pmap %d",   "pmap");
+        attach_cmd(f, "/usr/bin/pfiles %d", "files");
+        attach_cmd(f, "/usr/bin/plimit %d", "limits");
     }
 
     pclose(f);

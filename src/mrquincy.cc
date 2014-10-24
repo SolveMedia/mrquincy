@@ -120,7 +120,6 @@ main(int argc, char **argv){
      job_init();
 
      VERBOSE("running.");
-
      // manage threads
      // this does not return until we shutdown
      network_manage();
