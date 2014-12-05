@@ -18,7 +18,6 @@ my %PARSE = (
     reduce	=> { tag => 'block',   multi => 1, },
     final	=> { tag => 'block',   multi => 0, },
     readinput	=> { tag => 'block',   multi => 0, },
-    filterinput	=> { tag => 'block',   multi => 0, },
     );
 
 my %BLOCK = (
