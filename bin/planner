@@ -225,7 +225,7 @@ sub maxload {
     my $std = sqrt($t2 / $n - $ave * $ave);
     my $max = $ave + 3 * $std;
 
-    print STDERR "ave: $ave; std: $std; max $max\n";
+    # print STDERR "ave: $ave; std: $std; max $max\n";
     return $max;
 }
 
