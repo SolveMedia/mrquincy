@@ -36,8 +36,22 @@
 #define SORTPROG	"/usr/bin/sort"
 
 
-static int spawn(const char *, const ACPMRMTaskCreate *, int, int, int, int);
+static int spawn(const char *, const ACPMRMTaskCreate *, int, int, int, int, bool);
 
+static char sort_tmp[256];
+
+void
+pipeline_init(void){
+
+    // create a tmp directory for sort
+    snprintf(sort_tmp, sizeof(sort_tmp), "%s/mrtmp/sort", config->basedir.c_str());
+    int e = mkdir( sort_tmp, 0777 );
+
+    if( e && errno != EEXIST ){
+        PROBLEM("cannot create tmp dir: %s: %s", sort_tmp, strerror(errno));
+        sort_tmp[0] = 0;
+    }
+}
 
 
 Pipeline::~Pipeline(){
@@ -152,7 +166,7 @@ Pipeline::Pipeline(const ACPMRMTaskCreate *g, int* outfds){
     outfds[2] = set_nbio( pprogdat[0] );
 
     // spawn the end-user program
-    _pid = spawn( _tmpfile.c_str(), 0, pprogin[0], pprogout[1], pprogerr[1], pprogdat[1] );
+    _pid = spawn( _tmpfile.c_str(), 0, pprogin[0], pprogout[1], pprogerr[1], pprogdat[1], 0 );
     DEBUG("spawn job prog: %d", _pid);
 
     // what do we need to run?
@@ -166,7 +180,6 @@ Pipeline::Pipeline(const ACPMRMTaskCreate *g, int* outfds){
         pinterm[1] = pprogin[1];
     }else{
         // gzcat files | sort
-        // RSN - sort files
         e1 = GZCATPROG;
         e2 = SORTPROG;
 
@@ -175,14 +188,14 @@ Pipeline::Pipeline(const ACPMRMTaskCreate *g, int* outfds){
 
     // intermediate?
     if( e2 ){
-        int p2 = spawn( e2, 0, pinterm[0], pprogin[1], pprogerr[1], unusedfd );
+        int p2 = spawn( e2, 0, pinterm[0], pprogin[1], pprogerr[1], unusedfd, sort_tmp[0] );
         DEBUG("spawn %s: %d", e2, p2);
         _inpid = p2;
     }
 
     // initial prog (with files)
     // QQQ - stdin?
-    int p1 = spawn( e1, g, unusedfd, pinterm[1], pprogerr[1], 0 );
+    int p1 = spawn( e1, g, unusedfd, pinterm[1], pprogerr[1], 0, 0 );
     DEBUG("spawn %s %d", e1, p1);
     if( !e2 ) _inpid = p1;
 
@@ -201,7 +214,7 @@ Pipeline::Pipeline(const ACPMRMTaskCreate *g, int* outfds){
 
 
 static int
-spawn(const char *prog, const ACPMRMTaskCreate *g, int fin, int fout, int ferr, int fdat){
+spawn(const char *prog, const ACPMRMTaskCreate *g, int fin, int fout, int ferr, int fdat, bool issort){
 
     // fork
     // wire up fds
@@ -224,11 +237,17 @@ spawn(const char *prog, const ACPMRMTaskCreate *g, int fin, int fout, int ferr, 
 
     // build argv
     int argc = g ? g->infile_size() : 0;
+    if( issort ) argc += 2;
     const char * argv[argc + 2];
 
     argv[0] = (char*)prog;
-    for(int i=0; i<argc; i++){
-        argv[i+1] = g->infile(i).c_str();
+    if( issort ){
+        argv[1] = "-T";
+        argv[2] = sort_tmp;
+    }else if( g ){
+        for(int i=0; i<argc; i++){
+            argv[i+1] = g->infile(i).c_str();
+        }
     }
 
     argv[argc+1] = 0;

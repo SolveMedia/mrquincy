@@ -4,7 +4,7 @@
 # Function: Mr. Qunicy's Makefile
 
 
-PROTO = heartbeat.o mrmagoo.o std_ipport.o scrible.o std_reply.o
+PROTO =  std_ipport.o heartbeat.o mrmagoo.o scrible.o std_reply.o
 
 OBJS =  lock.o diag.o misc.o config.o daemon.o thread.o network.o \
 	mrquincy.o scriblr.o crypto.o base64.o \
@@ -15,7 +15,7 @@ OBJS =  lock.o diag.o misc.o config.o daemon.o thread.o network.o \
 # import site-wide compiler options
 include ../../Makefile.inc
 
-CFLAGS = -g $(FLAGS) -O3 -ffast-math -pthreads -I. -I`pwd`/../inc  -I$(LOCALDIR)/include -I/usr/local/include -I/usr/sfw/include
+CFLAGS = -g $(FLAGS) -O3 -ffast-math -pthreads -I. -I`pwd`/../inc  -I/usr/local/include -I/usr/sfw/include -I$(LOCALDIR)/include
 CCFLAGS=$(CFLAGS)
 LDFLAGS = -L$(LOCALDIR)/lib -L/usr/sfw/lib/amd64 -lprotobuf -lpthread -lrt -lsocket -lnsl -lmtmalloc -lgen -lssl -lcrypto -lsasl -lz -lsendfile
 PCC=protoc

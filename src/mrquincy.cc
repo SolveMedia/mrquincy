@@ -36,6 +36,7 @@ extern void kibitz_init(void);
 extern void xfer_init(void);
 extern void task_init(void);
 extern void job_init(void);
+extern void pipeline_init(void);
 
 void
 usage(void){
@@ -118,6 +119,7 @@ main(int argc, char **argv){
      xfer_init();
      task_init();
      job_init();
+     pipeline_init();
 
      VERBOSE("running.");
      // manage threads
