@@ -168,14 +168,25 @@ ToDo::start_common(void){
     _job->_running.push_back(this);
 }
 
+bool
+Server::too_many_tasks(void) const {
+
+    int taskmax = cpus ? 2 * cpus : SERVERTASKMAX;
+
+    if( _n_task_running >= taskmax ) return 1;
+    if( _last_task + SERVERTASKDELAY > lr_now() ) return 1;
+
+    return 0;
+}
+
 int
 TaskToDo::maybe_start(void){
 
     Server *svr = _job->_servers[ _serveridx ];
 
     // too much running?
-    if( svr->_n_task_running >= SERVERTASKMAX ) return 0;
-    if( svr->_last_task + SERVERTASKDELAY > lr_now() ) return 0;
+    if( svr->too_many_tasks() ) return 0;
+
     if( ! start_check() ) return 0;
 
     // check prereqs
@@ -212,13 +223,33 @@ TaskToDo::maybe_start(void){
     return 1;
 }
 
+bool
+Server::too_many_xfers_run(void) const {
+
+    int max = cpus ? 5 * cpus : SERVERXFERMAX;
+
+    if( _n_xfer_running >= max ) return 1;
+    return 0;
+}
+
+bool
+Server::too_many_xfers_peer(void) const {
+
+    int max = cpus ? 5 * cpus : SERVERXFERMAX;
+
+    if( _n_xfer_peering >= max ) return 1;
+    return 0;
+}
+
 int
 XferToDo::maybe_start(void){
 
     // too much running?
-    if( _job->_servers[ _serveridx ]->_n_xfer_running >= SERVERXFERMAX ) return 0;
-    if( _job->_servers[ _peeridx   ]->_n_xfer_peering >= SERVERXFERMAX ) return 0;
-    if( _job->_n_xfer_running >= XFERMAX ) return 0;
+    int xfermax = config->hw_cpus ? 10 * config->hw_cpus : XFERMAX;
+
+    if( _job->_servers[ _serveridx ]->too_many_xfers_run() )  return 0;
+    if( _job->_servers[ _peeridx   ]->too_many_xfers_peer() ) return 0;
+    if( _job->_n_xfer_running >= xfermax ) return 0;
     if( ! start_check() ) return 0;
 
 

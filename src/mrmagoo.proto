@@ -16,11 +16,12 @@ message ACPMRMStatus {
         required int32          status          = 7;
         required int64          timestamp       = 8;
         required int64          lastup          = 9;
-	optional int32		sort_metric	= 12;
+	optional int32		sort_metric	= 12;   // ~ current load
         required string         server_id       = 13;
         optional string         path            = 15;   // for debugging
-        optional int32          capacity_metric = 16;
+        optional int32          capacity_metric = 16;   // disk space
         optional int64          boottime        = 17;
+        optional int32          cpu_metric      = 18;   // number of cores
 };
 
 message ACPMRMStatusRequest {

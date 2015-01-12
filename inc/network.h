@@ -28,6 +28,7 @@ struct NetAddr {
     uint32_t	ipv4;
     uchar	ipv6[16];
     string	name;
+    int		cpus;
 
     bool is_self(void);
 };

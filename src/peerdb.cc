@@ -87,6 +87,7 @@ report_peer(ostringstream &out, const ACPMRMStatus *g){
         << std::setw(4)  << std::right << g->status()
         << std::setw(8)  << std::right << g->sort_metric()
         << std::setw(10) << std::right << g->capacity_metric()
+        << std::setw(4)  << std::right << g->cpu_metric()
         << std::setw(4)  << std::right << (lr_now() - g->lastup());
 
     format_dt( lr_now() - g->boottime(), out );
@@ -102,7 +103,7 @@ PeerDB::report(NTD *ntd){
     ostringstream out;
     _lock.r_lock();
 
-    out << "# name                      status    load      disk upd          uptime\n";
+    out << "# name                      status    load      disk cpu upd          uptime\n";
 
     for(list<Peer*>::const_iterator it=_allpeers.begin(); it != _allpeers.end(); it++){
         const Peer *p = *it;

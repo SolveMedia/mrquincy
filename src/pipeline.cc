@@ -46,6 +46,7 @@ pipeline_init(void){
     // create a tmp directory for sort
     snprintf(sort_tmp, sizeof(sort_tmp), "%s/mrtmp/sort", config->basedir.c_str());
     int e = mkdir( sort_tmp, 0777 );
+    chmod( sort_tmp, 0777 );
 
     if( e && errno != EEXIST ){
         PROBLEM("cannot create tmp dir: %s: %s", sort_tmp, strerror(errno));

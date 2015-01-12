@@ -46,6 +46,10 @@ public:
     Server(){ _isup = 1; _n_task_running = _n_xfer_running = _n_xfer_peering = _n_dele_running = _n_fails = 0; _n_task_redo = 0; _last_task = 0;}
     ~Server();
 
+    bool too_many_xfers_run(void) const;
+    bool too_many_xfers_peer(void) const;
+    bool too_many_tasks(void) const;
+
     DISALLOW_COPY(Server);
 };
 

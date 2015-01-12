@@ -89,6 +89,7 @@ about_myself(ACPMRMStatus *g){
     g->set_boottime( starttime );
 
     g->set_sort_metric( current_load() );
+    g->set_cpu_metric( config->hw_cpus );
 
     // determine disk space
     if( ! statvfs( config->basedir.c_str(), &vfs ) ){
