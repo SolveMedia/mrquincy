@@ -28,7 +28,7 @@
 #include <sstream>
 using std::ostringstream;
 
-#define MAXXFER		5	// RSN - config
+#define MAXXFER		(config->hw_cpus ? 5 * config->hw_cpus / 4 : 2)
 #define TIMEOUT		15
 
 class Xfer {

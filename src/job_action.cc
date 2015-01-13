@@ -226,7 +226,7 @@ TaskToDo::maybe_start(void){
 bool
 Server::too_many_xfers_run(void) const {
 
-    int max = cpus ? 5 * cpus : SERVERXFERMAX;
+    int max = cpus ? 2 * cpus : SERVERXFERMAX;
 
     if( _n_xfer_running >= max ) return 1;
     return 0;
@@ -235,7 +235,7 @@ Server::too_many_xfers_run(void) const {
 bool
 Server::too_many_xfers_peer(void) const {
 
-    int max = cpus ? 5 * cpus : SERVERXFERMAX;
+    int max = cpus ? 2 * cpus : SERVERXFERMAX;
 
     if( _n_xfer_peering >= max ) return 1;
     return 0;
