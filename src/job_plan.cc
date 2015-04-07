@@ -460,20 +460,24 @@ Job::plan_files(void){
     int nstep  = _g.section_size();
     int nserv  = _servers.size();
 
+    DEBUG("nst %d, nserv %d", nstep, nserv);
+
     for(int i=0; i<nstep; i++){
         Step *step = _plan[i];
         int ntask  = step->_tasks.size();
         int infile, outfile;
 
-        if( i == (nstep-1) ){
-            // last step
-            outfile = 1;
-            infile  = _plan[i-1]->_tasks.size();
-        }
-        else if( i == 0 ){
+        DEBUG("step %d", i);
+        if( i == 0 ){
             // first (map) step
             outfile = (nstep > 1) ? _plan[i+1]->_tasks.size() : 1;
             infile  = 0;	// already figured
+
+        }else if( i == (nstep-1) ){
+            // last step
+            outfile = 1;
+            infile  = _plan[i-1]->_tasks.size();
+
         }else{
             outfile = (nstep > i+1) ? _plan[i+1]->_tasks.size() : 1;
             infile  = _plan[i-1]->_tasks.size();
