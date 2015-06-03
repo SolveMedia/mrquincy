@@ -48,7 +48,7 @@ Queued::start_or_queue(void *g, const char *id, int prio, int max){
     QueueElem *e = new QueueElem(g, id, prio);
     e->_last_status = lr_now() - random_n(MINSTATUS);
 
-    if( nrunning() >= max ){
+    if( _running.size() >= max ){
 
         // insert in priority order
         list<QueueElem*>::iterator it;
