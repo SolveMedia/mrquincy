@@ -120,6 +120,7 @@ static struct {
     { "peer",		  'p' },
     { "xfer",	          'x' },
     { "task",		  't' },
+    { "queue",		  'q' },
     { "job",	          'j' },
     { "mapio",		  'i' },
 };
