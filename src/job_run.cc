@@ -274,13 +274,15 @@ Job::check_timeouts(void){
 int
 Job::maybe_specexec(void){
 
+    if( !_plan.size() ) return 0; // empty job
+    if( !_stepno )      return 0; // we don't replace map tasks
+
     _lock.r_lock();
 
     int ntask = _plan[ _stepno ]->_width;
     int nserv = _servers.size();
 
     int l = 1;
-    if( !_stepno ) l = 0;	// we don't replace map tasks
 
     // not worthwhile
     if( ntask < 5 ) l = 0;
