@@ -52,7 +52,7 @@ my $config = decode_json($d);
 # defaults
 $config->{mrmode}   ||= 'prod';
 $config->{datamode} ||= 'prod';
-$config->{system}   ||= 'dancr';
+$config->{system}   ||= 'dapi';
 
 $opt{d} = 1 if $config->{debug};
 
